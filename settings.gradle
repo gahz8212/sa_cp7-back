@@ -1,0 +1,17 @@
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+}
+rootProject.name = 'cp7'
+include 'global'
+include 'global-auth'
+include 'domain-api'
+include 'domain-admin'
+include 'domain-nexus'
+include 'domain-nexus-shinhan'
+include 'domain-nexus-jeju'
+include 'domain-nexus-openapi'
+include 'domain-nexus-unipost'
+include 'domain-watch'
+include 'domain-bankro'
+include 'domain-batch'
+include 'domain-batch-shinhan'

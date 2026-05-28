@@ -1,0 +1,10 @@
+plugins {
+  id 'org.springframework.boot'
+}
+
+bootJar { enabled = true }
+
+dependencies {
+	implementation project(':global') // 공통 모듈 의존성 추가
+	implementation project(':domain-batch-shinhan') // 신한 모듈 의존성 추가
+}

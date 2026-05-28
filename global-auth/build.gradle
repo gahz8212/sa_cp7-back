@@ -1,0 +1,18 @@
+plugins {
+  id 'org.springframework.boot'
+}
+
+bootJar { enabled = false } // 실행 파일로 만들지 않음
+jar { enabled = true }    // 라이브러리로 빌드
+
+dependencies {
+	implementation project(':global') // 공통 모듈 의존성 추가
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-security'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+}

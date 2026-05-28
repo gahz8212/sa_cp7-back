@@ -1,0 +1,42 @@
+spring:
+  config:
+    import: classpath:application-common.yml
+  application:
+    name: api
+  datasource:
+    url: jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul
+    username: cleanpay
+    password: Paycoms!2
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # password: 1111
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+          max-wait: 30000ms
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+mybatis:
+  type-aliases-package: com.paycoms.cp7.api
+
+jwt:
+  secret: cGF5Y29tcy1jbGVhbnBheS1wcm9qZWN0LWp3dC1zZWNyZXlrZXk=
+  access-token-expiration-time: 300000        # 5분 (ms)
+  refresh-token-expiration-time: 43200000     # 12시간 (ms)
+
+logging:
+  level:
+    "[com.paycoms.cp7.api]": DEBUG
+
+file:
+  upload-dir: /tmp/uploads
+
+server:
+  port: 8080

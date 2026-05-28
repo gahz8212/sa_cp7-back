@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.paycoms.cp7.batch.shinhan.api.mapper.ScheduleMapper">
+  <select id="getTriggerInfoById" resultType="TriggerInfoEntity" parameterType="Long">
+    select trigger_name, trigger_group
+      from batchs
+     where batch_id = #{id}
+  </select>
+
+  <select id="getSchedules" resultType="BatchInfoEntity" parameterType="com.paycoms.cp7.batch.shinhan.api.dto.ScheduleRequest">
+    select bc.batch_id
+         , bc.group_nm
+         , bc.batch_nm
+         , qt.trigger_state
+         , qc.cron_expression
+         , case qt.trigger_state
+            when 'WAITING' then '대기'
+            when 'ACQUIRED' then '획득'
+            when 'EXECUTING' then '실행 중'
+            when 'PAUSED' then '일시 정지'
+            when 'BLOCKED' then '차단'
+            when 'COMPLETE' then '완료'
+            when 'ERROR' then '오류'
+            when 'DELETED' then '삭제'
+            else qt.trigger_state
+          end as trigger_state_desc
+      from batchs bc
+     inner join qrtz_triggers qt
+        on bc.sched_name    = qt.sched_name
+       and bc.trigger_name  = qt.trigger_name
+       and bc.trigger_group = qt.trigger_group
+     inner join qrtz_cron_triggers qc
+        on qt.sched_name    = qc.sched_name
+       and qt.trigger_name  = qc.trigger_name
+       and qt.trigger_group = qc.trigger_group
+  </select>
+</mapper>

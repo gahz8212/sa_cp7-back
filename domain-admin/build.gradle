@@ -1,0 +1,32 @@
+plugins {
+  id 'org.springframework.boot'
+}
+
+bootJar { enabled = true }
+
+ext {
+    // Spring Boot 3.3.x 버전과 호환되는 Spring Cloud 버전입니다.
+    set('springCloudVersion', "2023.0.3") 
+}
+
+dependencies {
+	implementation project(':global') // 공통 모듈 의존성 추가
+	implementation project(':global-auth') // 공통 인증 모듈 의존성 추가
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.1'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+  implementation 'org.springframework.boot:spring-boot-starter-security'
+  testImplementation 'org.springframework.security:spring-security-test'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+	implementation 'org.apache.poi:poi-ooxml:5.2.5'
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}" 
+    }
+}

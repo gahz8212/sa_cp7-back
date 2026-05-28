@@ -1,0 +1,12 @@
+*.yml
+*.properties
+*.pem
+*.jks
+*.p12
+.env*
+build/
+.gradle/
+bin/
+out/
+.DS_Store
+node_modules/

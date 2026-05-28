@@ -1,0 +1,28 @@
+spring:
+  config:
+    import: classpath:application-common.yml
+  application:
+    name: batch
+  quartz:
+    job-store-type: jdbc
+    overwrite-existing-jobs: false
+    jdbc:
+      initialize-schema: never
+  datasource:
+    url: jdbc:mysql://localhost:3306/cp?serverTimezone=Asia/Seoul
+    username: root
+    password: 1111
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+mybatis:
+  type-aliases-package: com.paycoms.cp7.batch
+
+logging:
+  level:
+    "[com.paycoms.cp7.batch]": DEBUG
+
+server:
+  port: 8081

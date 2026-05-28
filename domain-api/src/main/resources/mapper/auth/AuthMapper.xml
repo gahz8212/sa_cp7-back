@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.paycoms.cp7.api.auth.mapper.AuthMapper">
+    <select id="test" resultType="AuthEntity"> SELECT ATRZ_ID AS ID , ATRZ_TASK_CD AS NAME ,
+        ATRZ_TYPE_CD AS EMAIL FROM CP_ATRZ </select>
+</mapper>

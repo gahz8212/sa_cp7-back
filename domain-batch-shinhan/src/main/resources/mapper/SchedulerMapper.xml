@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.paycoms.cp7.batch.shinhan.mapper.SchedulerMapper">
+  <select id="getRepeatInterval" resultType="RepeatIntervalEntity" parameterType="com.paycoms.cp7.batch.shinhan.dto.RepeatIntervalDto">
+    SELECT CRON_EXPRESSION
+      FROM QRTZ_CRON_TRIGGERS
+     WHERE SCHED_NAME    = #{schedName}
+       AND TRIGGER_NAME  = #{triggerName}
+       AND TRIGGER_GROUP = #{triggerGroup}
+  </select>
+</mapper>

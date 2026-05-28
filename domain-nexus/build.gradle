@@ -1,0 +1,13 @@
+plugins {
+  id 'org.springframework.boot'
+}
+
+bootJar { enabled = true }
+
+dependencies {
+	implementation project(':global') // 공통 모듈 의존성 추가
+	implementation project(':domain-nexus-shinhan') // 신한은행 연계 모듈
+	implementation project(':domain-nexus-jeju') // 제주은행 연계 모듈
+	implementation project(':domain-nexus-openapi') // 오픈API 연계 모듈
+	implementation project(':domain-nexus-unipost') // 전자계약 연계 모듈
+}
