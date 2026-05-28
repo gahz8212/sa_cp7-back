@@ -5,8 +5,10 @@ spring:
     name: api
   datasource:
     url: jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul
-    username: cleanpay
-    password: Paycoms!2
+    # username: cleanpay
+    # password: Paycoms!2
+    username: root
+    password: di03367i
   data:
     redis:
       host: localhost
