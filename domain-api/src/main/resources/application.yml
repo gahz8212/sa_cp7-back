@@ -4,11 +4,11 @@ spring:
   application:
     name: api
   datasource:
-    url: jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul
-    # username: cleanpay
-    # password: Paycoms!2
+    url: jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
     username: root
     password: di03367i
+    hikari:
+      connection-init-sql: SET NAMES utf8mb4
   data:
     redis:
       host: localhost

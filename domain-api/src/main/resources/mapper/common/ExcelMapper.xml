@@ -2,16 +2,17 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.paycoms.cp7.api.common.mapper.ExcelMapper">
-    <insert id="insertExcel" parameterType="Excel"> INSERT INTO excels ( create_key_string, cell01,
-        cell02, cell03, cell04, cell05, cell06, cell07, cell08, cell09, cell10, cell11, cell12,
-        cell13, cell14, cell15, cell16, cell17, cell18, cell19, cell20, cell21, cell22, cell23,
-        cell24, cell25, cell26, cell27, cell28, cell29, cell30, cell31, cell32, cell33, cell34,
-        cell35, cell36, cell37, cell38, cell39, cell40, cell41, cell42, cell43, cell44, cell45,
-        cell46, cell47, cell48, cell49, cell50 ) VALUES ( #{createKeyString}, #{cell01}, #{cell02},
-        #{cell03}, #{cell04}, #{cell05}, #{cell06}, #{cell07}, #{cell08}, #{cell09}, #{cell10},
-        #{cell11}, #{cell12}, #{cell13}, #{cell14}, #{cell15}, #{cell16}, #{cell17}, #{cell18},
-        #{cell19}, #{cell20}, #{cell21}, #{cell22}, #{cell23}, #{cell24}, #{cell25}, #{cell26},
-        #{cell27}, #{cell28}, #{cell29}, #{cell30}, #{cell31}, #{cell32}, #{cell33}, #{cell34},
-        #{cell35}, #{cell36}, #{cell37}, #{cell38}, #{cell39}, #{cell40}, #{cell41}, #{cell42},
-        #{cell43}, #{cell44}, #{cell45}, #{cell46}, #{cell47}, #{cell48}, #{cell49}, #{cell50} ) </insert>
+    <insert id="insertExcel" parameterType="Excel"> 
+        INSERT INTO excel_data ( 
+            file_key, 
+            row_type, 
+            row_index, 
+            data_json 
+        ) VALUES ( 
+            #{fileKey}, 
+            #{rowType}, 
+            #{rowIndex}, 
+            #{dataJson, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler} 
+        ) 
+    </insert>
 </mapper>

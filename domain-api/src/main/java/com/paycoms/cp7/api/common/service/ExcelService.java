@@ -43,72 +43,61 @@ public class ExcelService {
 
     // 엑셀 워크북 열기 (XLSX 대응)
     Workbook workbook = new XSSFWorkbook(file.getInputStream());
-    Sheet sheet = workbook.getSheetAt(sheetNo); // 지정된 시트 사용
+    Sheet sheet = workbook.getSheetAt(sheetNo);
 
     try {
-      List<ExcelDto> dataList = new ArrayList<>();
+      List<Excel> dataList = new ArrayList<>();
 
-      int no = 1; // 고유 번호 시작값 (예: 시퀀스 번호)
+      // 1. 헤더 처리 (rowNo 행)
+      Row headerRow = sheet.getRow(rowNo);
+      List<String> headers = new ArrayList<>();
+      if (headerRow != null) {
+        for (int j = 0; j < headerRow.getLastCellNum(); j++) {
+          Cell cell = headerRow.getCell(j);
+          headers.add(cell == null ? "" : cell.getStringCellValue());
+        }
+        
+        Excel headerExcel = new Excel();
+        headerExcel.setFileKey(createKeyString);
+        headerExcel.setRowType("HEADER");
+        headerExcel.setRowIndex(rowNo);
+        headerExcel.setDataJson(headers);
+        dataList.add(headerExcel);
+      }
 
-      for (int i = rowNo; i <= sheet.getLastRowNum(); i++) { // 지정된 행 번호부터 마지막 열 번호까지
+      // 2. 데이터 처리 (rowNo + 1 행부터)
+      for (int i = rowNo + 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
-        if (row == null)
-          continue;
+        if (row == null) continue;
 
-        ExcelDto excelDto = new ExcelDto();
-
-        excelDto.setNo(no++);
-
-        for (int j = 0; j < 50; j++) {
-          String fieldName = String.format("cell%02d", j + 1); // cell01, cell02 ... 생성
-          String cellValue = row.getCell(j) == null ? null : row.getCell(j).getStringCellValue(); // 셀
-
-          try {
-            // 리플렉션으로 해당 이름의 필드를 찾아 값을 세팅
-            Field field = ExcelDto.class.getDeclaredField(fieldName);
-            field.setAccessible(true); // private 필드 접근 허용
-            field.set(excelDto, cellValue);
-          } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 필드가 없거나 접근 불가할 경우 예외 처리
-            throw new BusinessException("EXCEL_002", fieldName);
+        List<String> rowData = new ArrayList<>();
+        for (int j = 0; j < headers.size(); j++) {
+          Cell cell = row.getCell(j);
+          String value = "";
+          if (cell != null) {
+            switch (cell.getCellType()) {
+              case STRING: value = cell.getStringCellValue(); break;
+              case NUMERIC: value = String.valueOf(cell.getNumericCellValue()); break;
+              case BOOLEAN: value = String.valueOf(cell.getBooleanCellValue()); break;
+              default: value = "";
+            }
           }
+          rowData.add(value);
         }
 
-        dataList.add(excelDto);
+        Excel dataExcel = new Excel();
+        dataExcel.setFileKey(createKeyString);
+        dataExcel.setRowType("DATA");
+        dataExcel.setRowIndex(i);
+        dataExcel.setDataJson(rowData);
+        dataList.add(dataExcel);
 
         // 1000개마다 또는 마지막 행일 때 데이터 처리 (DB 저장)
-        if (i % 1000 == 0 || i == sheet.getLastRowNum()) {
-          List<Excel> excels = dataList.stream().map(dto -> {
-            Excel excel = new Excel();
-            excel.setCeateKeyString(createKeyString);
-            excel.setCreateKeyNo(dto.getNo());
-            // DTO의 필드 값을 엔티티로 매핑
-            // 1부터 50까지 반복하며 필드 값을 복사
-            for (int j = 1; j <= 50; j++) {
-              String fieldName = String.format("cell%02d", j);
-
-              try {
-                // DTO에서 값 꺼내기 (Field 이용)
-                Field dtoField = dto.getClass().getDeclaredField(fieldName);
-                dtoField.setAccessible(true);
-                Object value = dtoField.get(dto);
-
-                // Entity에 값 넣기 (Field 이용)
-                Field entityField = excel.getClass().getDeclaredField(fieldName);
-                entityField.setAccessible(true);
-                entityField.set(excel, value);
-              } catch (Exception e) {
-                // 필드가 없거나 접근 오류 시 로그 출력
-                throw new BusinessException("EXCEL_002", fieldName);
-              }
-            }
-
-            return excel;
-          }).toList();
-          dataList.clear(); // 리스트 초기화
-
-          saveExcels(excels); // DB 저장 (배치 모드)
-        }      }
+        if (dataList.size() >= 1000 || i == sheet.getLastRowNum()) {
+          saveExcels(new ArrayList<>(dataList));
+          dataList.clear();
+        }
+      }
     } finally {
       workbook.close();
     }
@@ -116,25 +105,32 @@ public class ExcelService {
 
   @Transactional
   public void saveExcels(List<Excel> excelList) {
-    // BATCH 모드로 세션을 엽니다. 대용량 데이터 insert로 메모리에 담아 한번에 처리
     try (SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
       ExcelMapper mapper = sqlSession.getMapper(ExcelMapper.class);
-
       for (Excel excel : excelList) {
-        // mapper.insertExcel(excel); // 실제 DB로 바로 안 가고 메모리에 쌓임
+        mapper.insertExcel(excel);
       }
-
-      // 쌓인 모든 쿼리를 한 번에 실행
       sqlSession.flushStatements();
-
-      sqlSession.commit(); // 트랜잭션 커밋
-
+      sqlSession.commit();
     } catch (Exception e) {
       throw new BusinessException("EXCEL_003", e.getMessage());
     }
   }
 
   public byte[] downloadExcel(DownloadExcelRequest request) throws IOException {
+    // Jxls 템플릿 기반 다운로드 로직 (새로운 방식)
+    /* 템플릿 파일이 resources 하위에 있다고 가정 */
+    /*
+    try (InputStream is = new ClassPathResource("templates/excel/" + request.getTemplateName()).getInputStream();
+         ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+        Context context = new Context();
+        context.putVar("items", request.getDataList()); // 데이터 주입
+        JxlsHelper.getInstance().processTemplate(is, os, context);
+        return os.toByteArray();
+    }
+    */
+    
+    // 아래는 기존 POI 수동 생성 로직 (주석 처리 예정이나 일단 구조 유지를 위해 대체 코드로 작성)
     try (Workbook workbook = new XSSFWorkbook();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         POIFSFileSystem fs = new POIFSFileSystem()) {
@@ -159,6 +155,8 @@ public class ExcelService {
         }
       }
 
+      // 데이터 주입 부분 (JSON 구조에 맞게 수정 필요)
+      /* 기존 Object[] 기반 로직 주석 처리
       List<Object[]> dataList = new ArrayList<Object[]>();
       Object[] objt = { "1", "홍길동", 1000, "2323" };
       dataList.add(objt);
@@ -172,15 +170,20 @@ public class ExcelService {
           row.createCell(columnNo++).setCellValue(item.toString());
         }
       }
+      */
 
       // 컬럼 너비 자동 조절
+      /*
       if (columns != null) {
-        for (int i = 0; i <= columnNo; i++) {
+        for (int i = 0; i <= columns.length; i++) {
           sheet.autoSizeColumn(i);
         }
       }
+      */
 
       workbook.write(out);
+      
+      // (이하 암호화 로직은 유지)
 
       if (request.getPasswordYn().equals("Y")) {
         // 암호화 설정 (Standard 모드 혹은 Agile 모드)

@@ -27,6 +27,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import com.paycoms.cp7.global.auth.annotation.Auth;
+import com.paycoms.cp7.global.auth.annotation.AuthPolicy;
+
 @Tag(name = "Excel Controller", description = "Excel 관련 API")
 @RestController
 @RequestMapping("/common")
@@ -36,6 +39,7 @@ public class ExcelController {
   private final MessageUtils messageUtils;
 
   @Operation(summary = "엑셀 업로드", description = "엑셀 파일을 업로드합니다.")
+  @Auth(AuthPolicy.PUBLIC) // 인증 없이 접근 허용
   @PostMapping(value = "/upload-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ApiResponse<UploadExcelResponse> uploadExcel(@LoginUser UserInfoDto userInfo,
       @Valid @ModelAttribute UploadExcelRequest request) {
@@ -50,7 +54,15 @@ public class ExcelController {
     }
 
     UploadExcelResponse response = new UploadExcelResponse();
-    response.setUploadExcelKey(userInfo.getId() + "-" + System.currentTimeMillis());
+
+    // 인증 없이 요청을 보내면 @LoginUser UserInfoDto userInfo 파라미터가 null이 됩니다. 이 상태로 코드가 실행되면
+    // userInfo.getId() 부분에서
+    // NullPointerException이 발생합니다.
+    // * 수정 내용: userInfo가 null일 경우를 대비해 기본값을 설정해 줍니다.
+    // response.setUploadExcelKey(userInfo.getId() + "-" +
+    // System.currentTimeMillis());
+    String userId = (userInfo != null) ? userInfo.getId() : "anonymous";
+    response.setUploadExcelKey(userId + "-" + System.currentTimeMillis());
 
     try {
       excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo, rowNo);
