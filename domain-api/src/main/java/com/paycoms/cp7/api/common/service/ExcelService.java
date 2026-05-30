@@ -54,7 +54,7 @@ public class ExcelService {
       if (headerRow != null) {
         for (int j = 0; j < headerRow.getLastCellNum(); j++) {
           Cell cell = headerRow.getCell(j);
-          headers.add(cell == null ? "" : cell.getStringCellValue());
+          headers.add(getCellValueAsString(cell));
         }
         
         Excel headerExcel = new Excel();
@@ -73,16 +73,7 @@ public class ExcelService {
         List<String> rowData = new ArrayList<>();
         for (int j = 0; j < headers.size(); j++) {
           Cell cell = row.getCell(j);
-          String value = "";
-          if (cell != null) {
-            switch (cell.getCellType()) {
-              case STRING: value = cell.getStringCellValue(); break;
-              case NUMERIC: value = String.valueOf(cell.getNumericCellValue()); break;
-              case BOOLEAN: value = String.valueOf(cell.getBooleanCellValue()); break;
-              default: value = "";
-            }
-          }
-          rowData.add(value);
+          rowData.add(getCellValueAsString(cell));
         }
 
         Excel dataExcel = new Excel();
@@ -100,6 +91,24 @@ public class ExcelService {
       }
     } finally {
       workbook.close();
+    }
+  }
+
+  private String getCellValueAsString(Cell cell) {
+    if (cell == null) {
+      return "";
+    }
+    switch (cell.getCellType()) {
+      case STRING:
+        return cell.getStringCellValue();
+      case NUMERIC:
+        return String.valueOf(cell.getNumericCellValue());
+      case BOOLEAN:
+        return String.valueOf(cell.getBooleanCellValue());
+      case FORMULA:
+        return cell.getCellFormula();
+      default:
+        return "";
     }
   }
 
