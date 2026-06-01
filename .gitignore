@@ -38,3 +38,5 @@ out/
 
 ### claude ###
 .claude/
+
+mysql_data/
