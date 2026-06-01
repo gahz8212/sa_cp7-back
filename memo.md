@@ -56,11 +56,10 @@
 - **Front-end**: **ExcelJS** (Client parsing/generation), **Luckysheet/FortuneSheet** (UI Preview).
 - **Database**: PostgreSQL/MySQL with JSONB/JSON support.
 
-## 5. Pros & Cons
-- **Pros**:
-    - No Java code required for complex styling (handled by Excel templates).
-    - Scalable for massive datasets.
-    - High data quality via staging/validation process.
-- **Cons**:
-    - Requires management of template files.
-    - Initial setup of mapping logic is required for each domain.
+### Future Tasks
+- Implement Frontend module (`sa_cp7-front`) to support Smart Upload.
+- Implement hybrid upload strategy:
+    - Frontend parsing (ExcelJS) for small files (< 5MB).
+    - Backend streaming parsing (Apache POI) for large files.
+- Refactor API to accept pre-parsed JSON from the frontend.
+
