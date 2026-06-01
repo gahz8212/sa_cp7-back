@@ -47,6 +47,8 @@ public class ExcelService {
 
     try {
       List<Excel> dataList = new ArrayList<>();
+      List<String> columnTypes = new ArrayList<>();
+      boolean firstRowAnalyzed = false;
 
       // 1. 헤더 처리 (rowNo 행)
       Row headerRow = sheet.getRow(rowNo);
@@ -74,16 +76,34 @@ public class ExcelService {
         for (int j = 0; j < headers.size(); j++) {
           Cell cell = row.getCell(j);
           String value = "";
+          String type = "STRING";
           if (cell != null) {
             switch (cell.getCellType()) {
-              case STRING: value = cell.getStringCellValue(); break;
-              case NUMERIC: value = String.valueOf(cell.getNumericCellValue()); break;
-              case BOOLEAN: value = String.valueOf(cell.getBooleanCellValue()); break;
-              default: value = "";
+              case STRING: 
+                value = cell.getStringCellValue(); 
+                type = "STRING";
+                break;
+              case NUMERIC: 
+                value = String.valueOf(cell.getNumericCellValue()); 
+                type = "NUMBER";
+                break;
+              case BOOLEAN: 
+                value = String.valueOf(cell.getBooleanCellValue()); 
+                type = "BOOLEAN";
+                break;
+              default: 
+                value = "";
+                type = "STRING";
             }
           }
           rowData.add(value);
+          
+          if (!firstRowAnalyzed) {
+              columnTypes.add(type);
+          }
         }
+        
+        firstRowAnalyzed = true;
 
         Excel dataExcel = new Excel();
         dataExcel.setFileKey(createKeyString);
@@ -98,6 +118,15 @@ public class ExcelService {
           dataList.clear();
         }
       }
+
+      // 마지막 행으로 타입 정보 추가
+      Excel typeExcel = new Excel();
+      typeExcel.setFileKey(createKeyString);
+      typeExcel.setRowType("TYPE");
+      typeExcel.setRowIndex(sheet.getLastRowNum() + 1);
+      typeExcel.setDataJson(columnTypes);
+      saveExcels(List.of(typeExcel));
+      
     } finally {
       workbook.close();
     }
