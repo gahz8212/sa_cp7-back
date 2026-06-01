@@ -1,8 +1,10 @@
 package com.paycoms.cp7.api.common.dto;
 
+import com.paycoms.cp7.api.common.model.Excel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 @Getter
 @Setter
@@ -10,4 +12,7 @@ import lombok.Setter;
 public class UploadExcelResponse {
     @Schema(description = "엑셀 업로드 키", example = "test@example.com-1234567890")
     private String uploadExcelKey;
+    
+    private List<Excel> dataList;
+    private int totalCount;
 }

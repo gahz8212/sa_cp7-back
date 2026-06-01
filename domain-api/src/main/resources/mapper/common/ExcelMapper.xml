@@ -15,4 +15,23 @@
             #{dataJson, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler} 
         ) 
     </insert>
+
+    <resultMap id="ExcelResultMap" type="Excel">
+        <result property="fileKey" column="file_key"/>
+        <result property="rowType" column="row_type"/>
+        <result property="rowIndex" column="row_index"/>
+        <result property="dataJson" column="data_json" typeHandler="com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler"/>
+    </resultMap>
+
+    <select id="selectExcelList" resultMap="ExcelResultMap">
+        SELECT * FROM excel_data
+        WHERE file_key = #{fileKey}
+        ORDER BY row_index ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    
+    <select id="selectExcelCount" resultType="int">
+        SELECT COUNT(*) FROM excel_data
+        WHERE file_key = #{fileKey}
+    </select>
 </mapper>

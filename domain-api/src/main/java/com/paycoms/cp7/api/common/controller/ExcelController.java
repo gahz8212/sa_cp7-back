@@ -66,6 +66,11 @@ public class ExcelController {
 
     try {
       excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo, rowNo);
+      
+      // 업로드 직후 첫 페이지 데이터 조회
+      response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), 1, 20));
+      response.setTotalCount(excelService.getExcelCount(response.getUploadExcelKey()));
+      
     } catch (IOException e) {
       throw new BusinessException("COMM_001", e.getMessage());
     }

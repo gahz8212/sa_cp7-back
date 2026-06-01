@@ -77,9 +77,16 @@ docker exec cp-mysql mysql -u root -pdi03367i --default-character-set=utf8mb4 -e
   - 전체 데이터 처리 완료 후, 분석된 타입 정보를 담은 `Excel` 객체를 생성하여 `ROW_TYPE`을 "TYPE"으로 설정하여 DB에 삽입.
 - **용도:** 저장된 데이터의 타입 검증(Validation) 및 후속 데이터 처리 시 활용.
 
-### Future Tasks
-- Implement Frontend module (`sa_cp7-front`) to support Smart Upload.
-- Implement hybrid upload strategy:
-    - Frontend parsing (ExcelJS) for small files (< 5MB).
-    - Backend streaming parsing (Apache POI) for large files.
-- Refactor API to accept pre-parsed JSON from the frontend.
+---
+
+## 5. Backend API Specification
+
+프론트엔드 연동을 위한 백엔드 API 명세입니다.
+
+- **Base URL:** `http://localhost:8080` (개발 환경 기준)
+- **API Endpoints:**
+  - **Excel Upload:** `POST /common/upload-excel`
+    - Content-Type: `multipart/form-data`
+    - Payload: { file, sheetNo, rowNo }
+    - Response: { uploadExcelKey, totalCount, dataList: [...] }
+
