@@ -1,10 +1,14 @@
 spring:
   config:
     import: classpath:application-common.yml
+  # jpa:
+  #   database-platform: org.hibernate.dialect.MySQLDialect
   application:
     name: admin
   datasource:
     url: jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul
+    # username: root
+    # password: di03367i
     username: cleanpay
     password: Paycoms!2
   data:
