@@ -83,10 +83,13 @@ docker exec cp-mysql mysql -u root -pdi03367i --default-character-set=utf8mb4 -e
 
 프론트엔드 연동을 위한 백엔드 API 명세입니다.
 
-- **Base URL:** `http://localhost:8080` (개발 환경 기준)
-- **API Endpoints:**
-  - **Excel Upload:** `POST /common/upload-excel`
-    - Content-Type: `multipart/form-data`
-    - Payload: { file, sheetNo, rowNo }
-    - Response: { uploadExcelKey, totalCount, dataList: [...] }
+- **기본 확인 방법:** 애플리케이션 실행 후 `/swagger-ui.html` 접속 (전체 API 상세 규격 확인 가능)
+- **주요 컨트롤러:**
+  - **Auth Controller:** 사용자 인증 (로그인, 토큰 재발급, 로그아웃)
+  - **Excel Controller:** 엑셀 처리 (업로드, 다운로드)
+  - **File Controller:** 파일 업로드
+
+- **참고 코드 경로 (DTO):**
+  - **인증:** `domain-api/src/main/java/com/paycoms/cp7/api/auth/dto/`
+  - **엑셀/파일:** `domain-api/src/main/java/com/paycoms/cp7/api/common/dto/`
 

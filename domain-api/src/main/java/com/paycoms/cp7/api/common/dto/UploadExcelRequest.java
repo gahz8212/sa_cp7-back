@@ -21,6 +21,8 @@ public class UploadExcelRequest {
     @Schema(description = "시트 번호 (default: 0)", defaultValue = "0", example = "0")
     private int sheetNo = 0;
 
-    @Schema(description = "행 번호 (default: 1)", defaultValue = "1", example = "1")
-    private int rowNo = 1;
+    @Schema(description = "행 번호 (default: 1)", defaultValue = "0", example = "0")
+    private int rowNo = 0;
+    @Schema(description = "페이지 번호 (default: 1)", defaultValue = "1", example = "1")
+    private int page = 1;
 }

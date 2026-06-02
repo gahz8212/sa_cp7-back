@@ -46,6 +46,7 @@ public class ExcelController {
     MultipartFile file = request.getFile();
     int sheetNo = request.getSheetNo();
     int rowNo = request.getRowNo();
+    int currentPage = request.getPage();
 
     // 파일 확장자 체크
     String contentType = file.getContentType();
@@ -68,7 +69,7 @@ public class ExcelController {
       excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo, rowNo);
       
       // 업로드 직후 첫 페이지 데이터 조회
-      response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), 1, 20));
+      response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), currentPage, 20));
       response.setTotalCount(excelService.getExcelCount(response.getUploadExcelKey()));
       
     } catch (IOException e) {

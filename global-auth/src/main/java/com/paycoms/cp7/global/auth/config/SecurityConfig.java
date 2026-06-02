@@ -37,14 +37,14 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html",
                                                                 "/swagger-resources/**",
                                                                 "/webjars/**",
-                                                                 // 아래처럼 /api가 붙은 경로도 명시적으로 함께 추가합니다.
+                                                                // 아래처럼 /api가 붙은 경로도 명시적으로 함께 추가합니다.
                                                                 "/api/v3/api-docs/**",
                                                                 "/api/api-docs/**",
                                                                 "/api/swagger-ui/**",
                                                                 "/api/swagger-ui.html",
                                                                 "/api/swagger-resources/**",
-                                                                "/api/webjars/**"
-                                                        )
+                                                                "/api/webjars/**",
+                                                                "/common/upload-excel/**")
                                                 .permitAll()
                                                 .anyRequest().permitAll() // 그 외 모든 요청은 토큰 필수!
                                 )
