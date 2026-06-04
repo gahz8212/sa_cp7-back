@@ -48,9 +48,13 @@ public class ExcelController {
     int rowNo = request.getRowNo();
     int currentPage = request.getPage();
 
-    // 파일 확장자 체크
+    // 파일 확장자 및 Content-Type 체크 (.xlsx 및 .xls 허용)
     String contentType = file.getContentType();
-    if (contentType == null || !contentType.contains("spreadsheetml")) {
+    String originalFilename = file.getOriginalFilename();
+    boolean isValidExcel = (contentType != null && (contentType.contains("spreadsheetml") || contentType.contains("vnd.ms-excel") || contentType.contains("application/octet-stream")))
+        || (originalFilename != null && (originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xls")));
+
+    if (!isValidExcel) {
       throw new BusinessException("EXCEL_001");
     }
 

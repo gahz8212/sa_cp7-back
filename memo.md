@@ -1,95 +1,18 @@
-# Docker Database Setup & Usage Memo
+# 엑셀 업로드 로직 개선 계획
 
-이 문서는 프로젝트의 데이터베이스(MySQL 9.x)를 도커 환경에서 설정하고 관리하는 방법을 정리합니다.
+## 현황 (2026-06-04 수정)
+- 엑셀 업로드 시 데이터 유실 문제 해결 완료.
+- `.xls`와 `.xlsx` 파일 형식 모두 지원.
+- 밀도 기반 자동 헤더 탐색 로직 적용 (비어 있지 않은 셀이 가장 많은 행을 기준으로 함).
+- 제목 행을 포함한 전체 행을 DB에 저장하여 데이터 완전성 확보.
 
-## 1. Docker Desktop (Windows) 환경
-윈도우 호스트에 도커 데스크탑을 설치하여 사용하는 방식입니다.
+## 완료 작업 (2026-06-04)
+1. `WorkbookFactory`를 도입하여 `.xls`, `.xlsx` 형식 통합 지원.
+2. `findBestHeaderRow` 메서드를 추가하여 자동 헤더 탐색 및 정렬.
+3. 엑셀의 0번 행부터 전체 데이터를 DB에 저장하도록 `uploadExcel` 로직 수정.
+4. `.xls` 파일(HTML 포맷 등) 업로드 시 발생하던 오류를 위한 라이브러리(`poi`) 추가 및 검증 로직 보강.
 
-### 환경 분리 (추천)
-- **Settings > Resources > WSL Integration**에서 사용 중인 WSL 배포판(Ubuntu 등)의 체크를 해제하여 WSL 내부 도커와 섞이지 않게 설정합니다.
-
-### 실행 명령어 (PowerShell)
-```powershell
-docker run -d `
-  --name cp-mysql `
-  --restart always `
-  -p 33306:3306 `
-  -e MYSQL_ROOT_PASSWORD=di03367i `
-  -e MYSQL_DATABASE=cp `
-  mysql:latest --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-```
-
-### 권한 및 인증 설정 (최초 1회 필수)
-MySQL 9.x 버전의 외부 접속 허용을 위해 컨테이너 내부에서 아래 명령을 실행합니다.
-```powershell
-docker exec -it cp-mysql mysql -u root -pdi03367i -e "ALTER USER 'root'@'%' IDENTIFIED BY 'di03367i'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION; FLUSH PRIVILEGES;"
-```
-
----
-
-## 2. WSL 내부 Docker (Native Linux) 환경
-WSL(Ubuntu 등) 내부에 직접 설치된 도커 엔진을 사용하는 방식입니다.
-
-### 실행 명령어 (WSL Terminal)
-```bash
-# 도커 서비스 시작
-sudo service docker start
-
-# MySQL 컨테이너 실행
-docker run -d \
-  --name cp-mysql \
-  --restart always \
-  -p 33306:3306 \
-  -e MYSQL_ROOT_PASSWORD=di03367i \
-  -e MYSQL_DATABASE=cp \
-  mysql:latest --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-```
-
-### 권한 및 인증 설정 (최초 1회 필수)
-```bash
-docker exec -it cp-mysql mysql -u root -pdi03367i -e "ALTER USER 'root'@'%' IDENTIFIED BY 'di03367i'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION; FLUSH PRIVILEGES;"
-```
-
----
-
-## 3. 공통 확인 및 팁
-
-### 한글 깨짐 방지 조회 (CLI)
-조회 시 `--default-character-set=utf8mb4` 옵션을 사용합니다.
-```bash
-docker exec cp-mysql mysql -u root -pdi03367i --default-character-set=utf8mb4 -e "SELECT * FROM cp.excel_data;"
-```
-
-### 애플리케이션 연결 정보 (application.yml)
-- **URL:** `jdbc:mysql://127.0.0.1:33306/cp?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false`
-- **Username:** `root`
-- **Password:** `di03367i`
-
----
-
-## 4. Excel 업로드 타입 분석 (Type Analysis)
-
-엑셀 파일 업로드 시 첫 번째 데이터 행을 기반으로 컬럼별 데이터 타입을 분석하여, 마지막 행으로 'TYPE' 타입의 데이터를 DB에 함께 저장합니다.
-
-- **대상:** 첫 번째 데이터 행 (row_index = rowNo + 1)
-- **로직:**
-  - 헤더 처리 후 첫 번째 데이터 행을 분석하여 컬럼 타입을 결정 (STRING, NUMBER, BOOLEAN).
-  - 전체 데이터 처리 완료 후, 분석된 타입 정보를 담은 `Excel` 객체를 생성하여 `ROW_TYPE`을 "TYPE"으로 설정하여 DB에 삽입.
-- **용도:** 저장된 데이터의 타입 검증(Validation) 및 후속 데이터 처리 시 활용.
-
----
-
-## 5. Backend API Specification
-
-프론트엔드 연동을 위한 백엔드 API 명세입니다.
-
-- **기본 확인 방법:** 애플리케이션 실행 후 `/swagger-ui.html` 접속 (전체 API 상세 규격 확인 가능)
-- **주요 컨트롤러:**
-  - **Auth Controller:** 사용자 인증 (로그인, 토큰 재발급, 로그아웃)
-  - **Excel Controller:** 엑셀 처리 (업로드, 다운로드)
-  - **File Controller:** 파일 업로드
-
-- **참고 코드 경로 (DTO):**
-  - **인증:** `domain-api/src/main/java/com/paycoms/cp7/api/auth/dto/`
-  - **엑셀/파일:** `domain-api/src/main/java/com/paycoms/cp7/api/common/dto/`
-
+## 향후 작업 계획 (2026-06-05 예정)
+1. 템플릿 파일 생성 및 관리 체계 구축.
+2. 신규 업로드 파일에 대한 템플릿 기반 데이터 검증 로직 구현.
+3. `file_key`를 원본 파일명 기반으로 할당하는 로직 적용.

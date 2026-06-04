@@ -22,6 +22,7 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,42 +42,39 @@ public class ExcelService {
 
   public void uploadExcel(String createKeyString, MultipartFile file, int sheetNo, int rowNo) throws IOException {
 
-    // 엑셀 워크북 열기 (XLSX 대응)
-    Workbook workbook = new XSSFWorkbook(file.getInputStream());
+    // 엑셀 워크북 열기 (XLS/XLSX 통합 대응)
+    Workbook workbook = WorkbookFactory.create(file.getInputStream());
     Sheet sheet = workbook.getSheetAt(sheetNo);
 
     try {
       List<Excel> dataList = new ArrayList<>();
       List<String> columnTypes = new ArrayList<>();
-      boolean firstRowAnalyzed = false;
+      boolean firstDataRowAnalyzed = false;
 
-      // 1. 헤더 처리 (rowNo 행)
-      Row headerRow = sheet.getRow(rowNo);
+      // 1. 최적의 헤더 행 자동 탐색 (밀도 기반)
+      int bestRowNo = findBestHeaderRow(sheet);
+      
+      // 2. 헤더 정보 미리 추출 (컬럼 기준점)
+      Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
-      if (headerRow != null) {
-        for (int j = 0; j < headerRow.getLastCellNum(); j++) {
-          Cell cell = headerRow.getCell(j);
+      if (bestRow != null) {
+        for (int j = 0; j < bestRow.getLastCellNum(); j++) {
+          Cell cell = bestRow.getCell(j);
           headers.add(getCellValueAsString(cell));
         }
-        
-        Excel headerExcel = new Excel();
-        headerExcel.setFileKey(createKeyString);
-        headerExcel.setRowType("HEADER");
-        headerExcel.setRowIndex(rowNo);
-        headerExcel.setDataJson(headers);
-        dataList.add(headerExcel);
       }
 
-      // 2. 데이터 처리 (rowNo + 1 행부터)
-      for (int i = rowNo + 1; i <= sheet.getLastRowNum(); i++) {
+      // 3. 0번 행부터 전체 데이터 처리 (사용자 요청: 모든 데이터 저장)
+      for (int i = 0; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
-        if (row == null) continue;
-
         List<String> rowData = new ArrayList<>();
+        
+        // 헤더 행의 컬럼 수만큼 데이터 추출
         for (int j = 0; j < headers.size(); j++) {
-          Cell cell = row.getCell(j);
+          Cell cell = (row != null) ? row.getCell(j) : null;
           String value = "";
           String type = "STRING";
+          
           if (cell != null) {
             switch (cell.getCellType()) {
               case STRING: 
@@ -92,44 +90,78 @@ public class ExcelService {
                 type = "BOOLEAN";
                 break;
               default: 
-                value = "";
+                value = getCellValueAsString(cell);
                 type = "STRING";
             }
           }
           rowData.add(value);
           
-          if (!firstRowAnalyzed) {
+          // 실제 데이터 행(헤더 다음 행)에서 타입 분석
+          if (i == bestRowNo + 1 && !firstDataRowAnalyzed) {
               columnTypes.add(type);
           }
         }
         
-        firstRowAnalyzed = true;
+        if (i == bestRowNo + 1) {
+            firstDataRowAnalyzed = true;
+        }
 
-        Excel dataExcel = new Excel();
-        dataExcel.setFileKey(createKeyString);
-        dataExcel.setRowType("DATA");
-        dataExcel.setRowIndex(i);
-        dataExcel.setDataJson(rowData);
-        dataList.add(dataExcel);
+        Excel excelObj = new Excel();
+        excelObj.setFileKey(createKeyString);
+        // 탐색된 행은 HEADER, 나머지는 DATA로 표시
+        excelObj.setRowType(i == bestRowNo ? "HEADER" : "DATA");
+        excelObj.setRowIndex(i);
+        excelObj.setDataJson(rowData);
+        dataList.add(excelObj);
 
-        // 1000개마다 또는 마지막 행일 때 데이터 처리 (DB 저장)
+        // 배치 저장
         if (dataList.size() >= 1000 || i == sheet.getLastRowNum()) {
           saveExcels(new ArrayList<>(dataList));
           dataList.clear();
         }
       }
 
-      // 마지막 행으로 타입 정보 추가
-      Excel typeExcel = new Excel();
-      typeExcel.setFileKey(createKeyString);
-      typeExcel.setRowType("TYPE");
-      typeExcel.setRowIndex(sheet.getLastRowNum() + 1);
-      typeExcel.setDataJson(columnTypes);
-      saveExcels(List.of(typeExcel));
+      // 타입 정보 저장
+      if (!columnTypes.isEmpty()) {
+          Excel typeExcel = new Excel();
+          typeExcel.setFileKey(createKeyString);
+          typeExcel.setRowType("TYPE");
+          typeExcel.setRowIndex(sheet.getLastRowNum() + 1);
+          typeExcel.setDataJson(columnTypes);
+          saveExcels(List.of(typeExcel));
+      }
       
     } finally {
       workbook.close();
     }
+  }
+
+  /**
+   * 상위 30개 행을 탐색하여 비어있지 않은 셀이 가장 많은 행(헤더 후보)을 찾습니다.
+   */
+  private int findBestHeaderRow(Sheet sheet) {
+    int maxCells = -1;
+    int bestRowIndex = 0;
+    int scanLimit = Math.min(sheet.getLastRowNum(), 30);
+
+    for (int i = 0; i <= scanLimit; i++) {
+      Row row = sheet.getRow(i);
+      if (row == null) continue;
+
+      int currentCells = 0;
+      for (int j = 0; j < row.getLastCellNum(); j++) {
+        Cell cell = row.getCell(j);
+        if (cell != null && !getCellValueAsString(cell).trim().isEmpty()) {
+          currentCells++;
+        }
+      }
+
+      if (currentCells > maxCells) {
+        maxCells = currentCells;
+        bestRowIndex = i;
+      }
+    }
+    return bestRowIndex;
   }
 
   private String getCellValueAsString(Cell cell) {
