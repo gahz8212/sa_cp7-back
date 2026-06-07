@@ -3,6 +3,8 @@ package com.paycoms.cp7.api.common.controller;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.paycoms.cp7.api.common.dto.DownloadExcelRequest;
+import com.paycoms.cp7.api.common.dto.ModifiedRow;
+import com.paycoms.cp7.api.common.dto.UpdateExcelRequest;
 import com.paycoms.cp7.api.common.dto.UploadExcelRequest;
 import com.paycoms.cp7.api.common.dto.UploadExcelResponse;
 import com.paycoms.cp7.api.common.service.ExcelService;
@@ -22,14 +26,15 @@ import com.paycoms.cp7.global.error.BusinessException;
 import com.paycoms.cp7.global.util.MessageUtils;
 import com.paycoms.cp7.global.util.ValidationUtils;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import com.paycoms.cp7.global.auth.annotation.Auth;
 import com.paycoms.cp7.global.auth.annotation.AuthPolicy;
-
+@Slf4j
 @Tag(name = "Excel Controller", description = "Excel 관련 API")
 @RestController
 @RequestMapping("/common")
@@ -73,7 +78,7 @@ public class ExcelController {
       excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo, rowNo);
       
       // 업로드 직후 첫 페이지 데이터 조회
-      response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), currentPage, 20));
+      response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), currentPage, 1000));
       response.setTotalCount(excelService.getExcelCount(response.getUploadExcelKey()));
       
     } catch (IOException e) {
@@ -82,6 +87,27 @@ public class ExcelController {
 
     return messageUtils.createResponse("SYS_200", response);
   }
+// @Operation(summary = "엑셀 업데이트", description = "엑셀 파일을 업데이트합니다.")
+//   @Auth(AuthPolicy.PUBLIC) // 인증 없이 접근 허용
+//   @PostMapping(value = "/update-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//   public ApiResponse<UploadExcelResponse> updateExcel(@LoginUser UserInfoDto userInfo,
+//       @Valid @ModelAttribute UploadExcelRequest request) {}
+
+     @Operation(summary = "엑셀 수정 사항 저장", description = "그리드에서 수정된 엑셀 행 데이터를 반영합니다.")
+     @Auth(AuthPolicy.PUBLIC) // 요청하신 대로 인증 제외 설정
+     @PostMapping(value = "/save-excel-changes")
+     public ApiResponse<String> saveExcelChanges(
+         @LoginUser UserInfoDto userInfo,
+         @Valid @RequestBody UpdateExcelRequest request) {
+    
+         List<ModifiedRow> changes = request.getModifiedRows();
+          log.info(changes.toString());
+        // 서비스 계층으로 전달하여 비즈니스 로직 처리
+        excelService.updateModifiedRows(userInfo, changes);
+   
+        return new ApiResponse<>(200,"SYS_200","총 " + changes.size() + "건의 수정 사항이 반영되었습니다.","SUCCESS");
+    }  
+
 
   @SuppressWarnings("null")
   @Operation(summary = "엑셀 다운로드", description = "엑셀 파일을 다운로드합니다.")

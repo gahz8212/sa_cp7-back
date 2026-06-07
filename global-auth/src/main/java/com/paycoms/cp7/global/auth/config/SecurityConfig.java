@@ -43,8 +43,9 @@ public class SecurityConfig {
                                                                 "/api/swagger-ui/**",
                                                                 "/api/swagger-ui.html",
                                                                 "/api/swagger-resources/**",
-                                                                "/api/webjars/**",
-                                                                "/common/upload-excel/**")
+                                                                "/api/webjars/**"
+                                                                // ,"/common/upload-excel/**"
+                                                        )
                                                 .permitAll()
                                                 .anyRequest().permitAll() // 그 외 모든 요청은 토큰 필수!
                                 )

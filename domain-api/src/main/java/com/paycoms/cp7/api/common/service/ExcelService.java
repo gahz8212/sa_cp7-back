@@ -7,6 +7,8 @@ import java.lang.reflect.Field;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -29,13 +31,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import com.paycoms.cp7.api.common.dto.DownloadExcelRequest;
 import com.paycoms.cp7.api.common.dto.ExcelDto;
+import com.paycoms.cp7.api.common.dto.ModifiedRow;
 import com.paycoms.cp7.api.common.mapper.ExcelMapper;
 import com.paycoms.cp7.api.common.model.Excel;
+import com.paycoms.cp7.global.auth.common.UserInfoDto;
 import com.paycoms.cp7.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExcelService {
 
   private final SqlSessionFactory sqlSessionFactory;
@@ -181,7 +187,22 @@ public class ExcelService {
         return "";
     }
   }
+public void updateModifiedRows(UserInfoDto userInfo, List<ModifiedRow> changes) {
+    for (ModifiedRow row : changes) {
+        Integer rowIndex = row.getRowIndex();
+        Map<String, Object> modifiedData = row.getModified();
 
+        // 예 1: DB에 직접 업데이트 (고유 ID가 포함된 경우)
+        // String id = (String) modifiedData.get("id");
+      // updateRecordInDb(id, modifiedData);
+
+      // 예 2: 세션/캐시에 있는 엑셀 데이터 구조를 업데이트
+      // excelCache.get(userInfo.getId()).updateRow(rowIndex, modifiedData);
+
+      log.info("행 {}번 업데이트 수행: {}", rowIndex, modifiedData);
+  }
+}
+    
   @Transactional(readOnly = true)
   public List<Excel> getExcelList(String fileKey, int page, int size) {
       ExcelMapper mapper = sqlSessionFactory.openSession().getMapper(ExcelMapper.class);
