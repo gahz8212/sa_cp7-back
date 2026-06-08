@@ -31,7 +31,27 @@
   - 컨트롤러 (`ExcelController.saveExcelChanges`)에서 요청 수신 및 `UpdateExcelRequest` 바인딩 확인.
   - 서비스 (`ExcelService.updateModifiedRows`)에서 현재 DB 반영 로직 없이 로그 출력만 수행하는 스텁(Stub) 상태임을 확인. 실제 구현 시 DB 업데이트 로직 필요.
 
-## 향후 작업 계획 (2026-06-05 예정)
-1. 템플릿 파일 생성 및 관리 체계 구축.
-2. 신규 업로드 파일에 대한 템플릿 기반 데이터 검증 로직 구현.
-3. `file_key`를 원본 파일명 기반으로 할당하는 로직 적용.
+## 엑셀 동적 템플릿 생성 전략 (2026-06-08)
+- 템플릿 관리 방식: 물리적 파일 대신 JSON 설계도 기반 동적 빌드 (Apache POI 사용).
+- 데이터 프로토콜: 프론트엔드에서 데이터 배열의 순서와 객체의 좌표(row, col) 정보를 결합하여 전송.
+- 병합 규칙:
+    - 수직 병합: `rowspan` 속성 사용.
+    - 가로 병합: `colspan` 속성 사용.
+- 처리 로직: 배열 순서대로 처리하여 엑셀 셀 순서 보장, 각 객체는 자신의 정확한 좌표를 인지하여 배치.
+- 확장성: 프론트에서 전송하는 JSON 구조가 변경되더라도 백엔드 로직 수정이 최소화되도록 객체 중심 설계 완료.
+
+## 데이터 구조 변환 로직 (2026-06-08)
+- 프론트엔드 평탄화 데이터(`flattenedHeaders`, `flattenedData`, `flattenedEtc`)를 `Cell` 객체 배열로 변환.
+- **좌표 매핑 규칙:**
+  - 각 영역별 시작 `row` index를 정의 (header, data, etc 선택 시 사용자가 처음 클릭한 영역).
+  - `col` 값은 배열 내 순서(index)를 기반으로 자동 설정.
+- **변환 구조:**
+  ```typescript
+  {
+    row: number;       // 시작 row index
+    col: number;       // 배열 내 인덱스
+    value: string;     // 셀 값
+    rowspan: number;   // 기본값 1
+    colspan: number;   // 기본값 1
+  }
+  ```
