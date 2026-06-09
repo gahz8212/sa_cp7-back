@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.paycoms.cp7.api.common.dto.DownloadExcelRequest;
+import com.paycoms.cp7.api.common.dto.ExcelCell;
 import com.paycoms.cp7.api.common.dto.ModifiedRow;
 import com.paycoms.cp7.api.common.dto.StructureExcelRequest;
 
@@ -121,13 +122,14 @@ public class ExcelController {
       @LoginUser UserInfoDto userInfo,
       @Valid @RequestBody StructureExcelRequest request) {
 
-    List<List<String>> headers = request.getFlattenedHeaders();
-    List<List<String>> dataSamples = request.getFlattenedData();
-    List<List<String>> etcInfo = request.getFlattenedEtc();
+    List<ExcelCell> headers = request.getFlattenedHeaders();
+    List<ExcelCell> dataSamples = request.getFlattenedData();
+    List<ExcelCell> etcInfo = request.getFlattenedEtc();
 
-    log.info(headers.toString());
-    log.info(dataSamples.toString());
-    log.info(etcInfo.toString());
+    log.info("헤더={}",headers.toString());
+    log.info("데이터={}",dataSamples.toString());
+    log.info("ETC={}",etcInfo.toString());
+    log.info("filename={}", request.getFileName());
     // 서비스 계층으로 전달하여 비즈니스 로직 처리
     // excelService.updateModifiedRows(userInfo, changes);
 

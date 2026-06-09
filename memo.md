@@ -31,27 +31,14 @@
   - 컨트롤러 (`ExcelController.saveExcelChanges`)에서 요청 수신 및 `UpdateExcelRequest` 바인딩 확인.
   - 서비스 (`ExcelService.updateModifiedRows`)에서 현재 DB 반영 로직 없이 로그 출력만 수행하는 스텁(Stub) 상태임을 확인. 실제 구현 시 DB 업데이트 로직 필요.
 
-## 엑셀 동적 템플릿 생성 전략 (2026-06-08)
-- 템플릿 관리 방식: 물리적 파일 대신 JSON 설계도 기반 동적 빌드 (Apache POI 사용).
-- 데이터 프로토콜: 프론트엔드에서 데이터 배열의 순서와 객체의 좌표(row, col) 정보를 결합하여 전송.
-- 병합 규칙:
-    - 수직 병합: `rowspan` 속성 사용.
-    - 가로 병합: `colspan` 속성 사용.
-- 처리 로직: 배열 순서대로 처리하여 엑셀 셀 순서 보장, 각 객체는 자신의 정확한 좌표를 인지하여 배치.
-- 확장성: 프론트에서 전송하는 JSON 구조가 변경되더라도 백엔드 로직 수정이 최소화되도록 객체 중심 설계 완료.
-
-## 데이터 구조 변환 로직 (2026-06-08)
-- 프론트엔드 평탄화 데이터(`flattenedHeaders`, `flattenedData`, `flattenedEtc`)를 `Cell` 객체 배열로 변환.
-- **좌표 매핑 규칙:**
-  - 각 영역별 시작 `row` index를 정의 (header, data, etc 선택 시 사용자가 처음 클릭한 영역).
-  - `col` 값은 배열 내 순서(index)를 기반으로 자동 설정.
-- **변환 구조:**
-  ```typescript
-  {
-    row: number;       // 시작 row index
-    col: number;       // 배열 내 인덱스
-    value: string;     // 셀 값
-    rowspan: number;   // 기본값 1
-    colspan: number;   // 기본값 1
-  }
-  ```
+## 엑셀 동적 템플릿 생성 및 검증 전략 (2026-06-09)
+- JSON 기반 데이터 스키마 정의:
+  - `flattenedHeaders`: 엑셀 헤더 레이아웃(좌표/병합) 정의.
+  - `flattenedType`: 엑셀 유효성 검증 규칙(데이터 타입 및 정규식) 정의.
+- DTO 구조 변경:
+  - `ExcelCell` 클래스 신설 (`value`, `row`, `col`, `rowspan`, `type`, `pattern` 필드 포함).
+  - `StructureExcelRequest`에서 `List<List<String>>` 대신 `List<ExcelCell>`을 사용하여 타입 안전성 확보.
+- 검증 로직 구현:
+  - 업로드/다운로드 시 `flattenedType` 스키마를 사용하여 데이터 타입 및 정규식 검증 로직 적용.
+  - DB 조회 데이터를 `flattenedHeaders` 기반으로 레이아웃에 매핑하여 엑셀 파일 생성.
+- 요약: 고정된 템플릿 파일 없이 프론트엔드에서 제공하는 스키마 정보와 DB 데이터를 결합하여 동적 생성 및 엄격한 데이터 검증 구현 완료.
