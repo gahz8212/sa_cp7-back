@@ -1,13 +1,15 @@
 package com.paycoms.cp7.api.common.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+
+@Data
 public class ExcelCell {
     private String value;
+    private String column;
+    private String type;
     private int row;
     private int col;
     private Integer rowspan;
+    private Integer colspan;
 }
