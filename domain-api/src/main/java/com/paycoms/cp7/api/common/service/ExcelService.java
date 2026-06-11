@@ -54,8 +54,6 @@ public class ExcelService {
 
     try {
       List<Excel> dataList = new ArrayList<>();
-      List<String> columnTypes = new ArrayList<>();
-      boolean firstDataRowAnalyzed = false;
 
       // 1. 최적의 헤더 행 자동 탐색 (밀도 기반)
       int bestRowNo = findBestHeaderRow(sheet);
@@ -78,38 +76,8 @@ public class ExcelService {
         // 헤더 행의 컬럼 수만큼 데이터 추출
         for (int j = 0; j < headers.size(); j++) {
           Cell cell = (row != null) ? row.getCell(j) : null;
-          String value = "";
-          String type = "STRING";
-          
-          if (cell != null) {
-            switch (cell.getCellType()) {
-              case STRING: 
-                value = cell.getStringCellValue(); 
-                type = "STRING";
-                break;
-              case NUMERIC: 
-                value = String.valueOf(cell.getNumericCellValue()); 
-                type = "NUMBER";
-                break;
-              case BOOLEAN: 
-                value = String.valueOf(cell.getBooleanCellValue()); 
-                type = "BOOLEAN";
-                break;
-              default: 
-                value = getCellValueAsString(cell);
-                type = "STRING";
-            }
-          }
+          String value = (cell != null) ? getCellValueAsString(cell) : "";
           rowData.add(value);
-          
-          // 실제 데이터 행(헤더 다음 행)에서 타입 분석
-          if (i == bestRowNo + 1 && !firstDataRowAnalyzed) {
-              columnTypes.add(type);
-          }
-        }
-        
-        if (i == bestRowNo + 1) {
-            firstDataRowAnalyzed = true;
         }
 
         Excel excelObj = new Excel();
@@ -125,16 +93,6 @@ public class ExcelService {
           saveExcels(new ArrayList<>(dataList));
           dataList.clear();
         }
-      }
-
-      // 타입 정보 저장
-      if (!columnTypes.isEmpty()) {
-          Excel typeExcel = new Excel();
-          typeExcel.setFileKey(createKeyString);
-          typeExcel.setRowType("TYPE");
-          typeExcel.setRowIndex(sheet.getLastRowNum() + 1);
-          typeExcel.setDataJson(columnTypes);
-          saveExcels(List.of(typeExcel));
       }
       
     } finally {
