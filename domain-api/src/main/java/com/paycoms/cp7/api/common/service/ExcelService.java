@@ -140,7 +140,7 @@ public class ExcelService {
       ExcelMappingTemplate existing = excelTemplateMapper.selectTemplateBySysType(sysType, userId);
       
       ExcelMappingTemplate template = new ExcelMappingTemplate();
-      template.setTemplateName(sysType + " 양식");
+      template.setTemplateName(fileName);
       template.setTargetSysType(sysType);
       template.setUserId(userId);
       
