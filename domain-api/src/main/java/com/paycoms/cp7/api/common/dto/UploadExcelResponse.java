@@ -15,4 +15,10 @@ public class UploadExcelResponse {
     
     private List<Excel> dataList;
     private int totalCount;
+    
+    @Schema(description = "추론된 대상 시스템 타입 (예: EMPLOYEE, PAYROLL)")
+    private String targetSysType;
+    
+    @Schema(description = "파일 이름 기반으로 판별된 백엔드 타겟 컬럼 메타데이터")
+    private List<SysMetadataDto> targetColumns;
 }

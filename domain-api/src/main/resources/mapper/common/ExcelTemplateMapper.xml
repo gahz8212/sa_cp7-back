@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.paycoms.cp7.api.common.mapper.ExcelTemplateMapper">
+    <insert id="insertTemplate" parameterType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
+        INSERT INTO excel_mapping_templates (
+            template_name,
+            header_structure,
+            mapping_rules,
+            target_sys_type,
+            user_id
+        ) VALUES (
+            #{templateName},
+            #{headerStructure, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            #{mappingRules, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            #{targetSysType},
+            #{userId}
+        )
+    </insert>
+
+    <update id="updateTemplate" parameterType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
+        UPDATE excel_mapping_templates SET
+            template_name = #{templateName},
+            header_structure = #{headerStructure, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            mapping_rules = #{mappingRules, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            updated_at = NOW()
+        WHERE target_sys_type = #{targetSysType} AND user_id = #{userId}
+    </update>
+
+    <select id="selectTemplateBySysType" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
+        SELECT * FROM excel_mapping_templates
+        WHERE target_sys_type = #{targetSysType} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+</mapper>
