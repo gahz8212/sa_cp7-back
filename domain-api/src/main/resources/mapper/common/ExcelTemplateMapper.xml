@@ -11,8 +11,8 @@
             user_id
         ) VALUES (
             #{templateName},
-            #{headerStructure, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
-            #{mappingRules, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            #{headerStructure},
+            #{mappingRules},
             #{targetSysType},
             #{userId}
         )
@@ -20,16 +20,22 @@
 
     <update id="updateTemplate" parameterType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         UPDATE excel_mapping_templates SET
-            template_name = #{templateName},
-            header_structure = #{headerStructure, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
-            mapping_rules = #{mappingRules, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler},
+            header_structure = #{headerStructure},
+            mapping_rules = #{mappingRules},
             updated_at = NOW()
-        WHERE target_sys_type = #{targetSysType} AND user_id = #{userId}
+        WHERE template_name = #{templateName} AND user_id = #{userId}
     </update>
 
     <select id="selectTemplateBySysType" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         SELECT * FROM excel_mapping_templates
         WHERE target_sys_type = #{targetSysType} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectTemplateByNameAndUser" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
+        SELECT * FROM excel_mapping_templates
+        WHERE template_name = #{templateName} AND user_id = #{userId}
+        ORDER BY id DESC
         LIMIT 1
     </select>
 </mapper>

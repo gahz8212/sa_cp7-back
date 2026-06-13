@@ -1,3 +1,26 @@
+## 완료 작업 (2026-06-13)
+
+### 1. 엑셀 매핑 템플릿 관리 전략 전면 개편
+- **B2B 대응 아키텍처 수립:** `userMapping`(개인별) 개념을 폐기하고, **고객사(Company/Tenant) 단위** 매핑 전략을 수립함. (현재 `userId`를 회사 식별자로 활용)
+- **추론 로직 완전 제거 (`sysType` 폐기):** 파일 내용을 보고 `EMPLOYEE`, `PAYROLL` 등으로 유추하던 불확실한 로직을 삭제하고, 오직 **정확한 파일명(Exact Filename)**과 **회사 ID(userId)**의 조합으로만 템플릿을 식별하도록 변경함.
+- **데이터 조회 조건 최적화:** `selectTemplateByNameAndUser` 쿼리를 신설하여, "우리 회사가 올린 파일 중 이름이 정확히 일치하는 가장 최신 세팅"을 불러오도록 구현.
+
+### 2. 기술적 결함 해결 (Bug Fix)
+- **이중 직렬화(Double Serialization) 해결:** `ExcelService`에서 이미 JSON 문자열로 변환한 데이터를 MyBatis `JsonTypeHandler`가 다시 한 번 이스케이프하던 문제를 해결함. (XML 매퍼에서 `typeHandler` 제거)
+- **다중 헤더(Multi-tier Header) 지원:** 사용자가 프론트엔드에서 선택한 헤더 종료 행(`rowNo`)을 기준으로, 그 이전의 모든 행을 `rowType: 'HEADER'`로 마킹하도록 로직을 보정함. (0번부터 선택 행까지 모두 헤더로 인식)
+- **기본 템플릿(Fallback) 조건 엄격화:** DB에 저장된 데이터가 없을 경우 반환하는 하드코딩된 기본 컬럼 리스트도 "포함(contains)"이 아닌 "정확히 일치(equals)"하는 파일명일 때만 동작하도록 수정하여 데이터 무결성 확보.
+
+### 3. 향후 과제
+- **필드 명칭 통일:** `근로자_간편서식`과 `장비_간편서식` 등 유사 서식 간의 `backColumn` 키값(예: `memberName` vs `representativeName`) 및 한글 라벨(예: `청구액` vs `청구액수`)을 전수 조사하여 통일 작업 필요. (프론트엔드 체크 아이콘 활성화 조건 충족을 위함)
+- **DB 데이터 클렌징:** 이중 직렬화 문제로 잘못 저장된 기존 `excel_mapping_templates` 테이블 데이터 삭제 및 재등록 필요.
+
+### 4. 백엔드 코드 품질 및 구조 개선 (Refactoring)
+- **하드코딩 메타데이터 분리 (`ExcelTemplateType` Enum):** `ExcelService`에 직접 구현되어 있던 엑셀 서식별 메타데이터 정보를 `ExcelTemplateType` Enum 클래스로 분리하여 관리 편의성과 확장성을 높임.
+- **엑셀 데이터 추출 정확도 향상:** `DataFormatter`를 도입하여 날짜, 숫자, 통화 등 다양한 셀 타입에 대해 엑셀 화면에 보이는 그대로의 텍스트를 추출하도록 개선함.
+- **DTO 및 모델 정리:** `DownloadExcelRequest`의 필드명 오타(`fileds` -> `fields`)를 수정하고, `ExcelDto`의 레거시 주석 코드를 제거하여 가독성을 개선함.
+- **API 바인딩 최적화:** `analyze-excel-structure` API의 인자 전달 방식을 `@RequestBody`로 변경하여 JSON 페이로드 바인딩 이슈를 해결함.
+- **상세 분석 보고서 작성:** 백엔드 엑셀 시스템의 아키텍처와 로직을 분석한 `excel_backend_analysis.txt` 파일을 생성하여 기술 부채 및 향후 개선 방향을 정리함.
+
 ## 엑셀 업로드 로직 개선 계획
 
 ## 현황 (2026-06-04 수정)
@@ -67,4 +90,17 @@
 ### 4. 검증 및 보안
 - **필수 매핑 강제:** `SysMetadataDto.required` 속성을 활용하여 필수 시스템 컬럼에 매핑된 엑셀 데이터가 없을 경우 저장 차단.
 - **파일명 관리:** 관리자의 워크플로우를 존중하여 원본 파일명 기반의 엄격한 매칭을 유지하되, 추후 필요시 중복 다운로드 꼬리표(`(1)`) 제거 로직 검토 가능.
+
+## 완료 작업 및 보류 사항 (2026-06-12 추가)
+### 1. 엑셀 업로드 및 템플릿 매핑 관련 버그 수정 완료
+- `ExcelController` & `ExcelService`: `saveExcelDataAndTemplate` 및 `updateModifiedRows` 메서드 호출 시 발생하는 컴파일 에러 해결. (추후 로그인 및 감사 기능을 고려하여 `UserInfoDto`를 파라미터로 넘기도록 시그니처 통일)
+- **파일명 확장자 매칭:** `getExactSysTypeByFileName` 로직에서 `contains` 추론을 버리고, 확장자(`.xlsx`)까지 포함된 원본 파일명(`"근로자_간편서식.xlsx"`, `"급여_간편서식.xlsx"` 등)과 정확히 일치(`equals`)하는지 검사하도록 수정.
+- **고객사(Tenant) 식별자 임시 처리:** 로그인 기능 부재로 인해 `excel_mapping_templates`에 저장 시 `user_id` 컬럼 값을 일단 `"anonymous"`로 고정 저장하도록 처리. (해당 컬럼은 추후 로그인 시 고객사 ID로 치환되어 각 고객사별 고유 양식을 유지하는 용도로 사용됨)
+
+### 2. 다음 확인 및 조치 사항 (보류/이슈)
+- **`excel_mapping_templates` 조회 실패 의심:** 템플릿 정보를 DB에 정상적으로 Insert/Update 하고 있으나, 이후 `getSysMetadata` 등을 통해 매핑 데이터를 제대로 읽어오지 못하는 현상이 의심됨.
+  - **원인 추정 1:** 저장 시 `user_id`를 `"anonymous"`로 고정했으나, 조회 시 다른 값으로 조회되고 있을 가능성.
+  - **원인 추정 2:** `targetSysType` 값의 매칭 불일치.
+  - **원인 추정 3:** DB의 `mapping_rules` 컬럼에 저장된 JSON 문자열을 `List<SysMetadataDto>` 객체로 역직렬화(Deserialization)하는 과정에서 에러가 발생하여 `catch` 블록으로 빠지고, 결과적으로 하드코딩된 기본(`if-else`) 메타데이터 목록을 반환하고 있을 가능성. (현재 역직렬화 실패 시 에러 로그만 남기고 별도 예외를 던지지 않음)
+  - **조치 계획:** 다음 작업 시 `getSysMetadata` 메서드 내의 `selectTemplateBySysType` 쿼리 파라미터와 `objectMapper.readValue` 부분의 로그를 확인하여 데이터 페치 및 역직렬화 실패 원인 규명 필요.
 

@@ -30,7 +30,7 @@ public class DownloadExcelRequest {
     private String password;
 
     @Schema(description = "필드명")
-    private String[] fileds;
+    private String[] fields;
 
     @NotNull(message = "VALI_001.datas")
     @Schema(description = "데이터")

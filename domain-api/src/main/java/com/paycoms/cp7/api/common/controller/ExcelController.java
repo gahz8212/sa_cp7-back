@@ -48,8 +48,8 @@ public class ExcelController {
     String originalFilename = file.getOriginalFilename();
     UploadExcelResponse response = new UploadExcelResponse();
 
-    int lastDotIndex = originalFilename != null ? originalFilename.lastIndexOf(".") : 0;
-    String userId = (userInfo != null) ? userInfo.getId() : (originalFilename != null ? originalFilename.substring(0, lastDotIndex) : "unknown");
+    // int lastDotIndex = originalFilename != null ? originalFilename.lastIndexOf(".") : 0;
+    String userId = (userInfo != null) ? userInfo.getId() : (originalFilename != null ? originalFilename : "unknown");
     response.setUploadExcelKey(userId + "-" + System.currentTimeMillis());
 
     try {
@@ -57,13 +57,9 @@ public class ExcelController {
       response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), currentPage, 1000));
       response.setTotalCount(excelService.getExcelCount(response.getUploadExcelKey()));
 
-      String targetSysType = excelService.getExactSysTypeByFileName(originalFilename);
-      response.setTargetSysType(targetSysType);
-      
-      if (!"UNKNOWN".equals(targetSysType)) {
-          // 통합 모델 적용: 저장된 템플릿 정보를 포함하여 targetColumns 반환
-          response.setTargetColumns(excelService.getSysMetadata(targetSysType, userInfo));
-      }
+      // 통합 모델 적용: 파일명 기준으로 저장된 템플릿 정보를 반환
+      response.setTargetColumns(excelService.getSysMetadata(originalFilename, userInfo));
+      response.setTargetSysType("UNKNOWN"); // You can keep it as UNKNOWN or remove from response model later.
     } catch (IOException e) {
       throw new BusinessException("COMM_001", e.getMessage());
     }
@@ -71,13 +67,25 @@ public class ExcelController {
     return messageUtils.createResponse("SYS_200", response);
   }
 
+
+  @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
+  @Auth(AuthPolicy.PUBLIC)
+  @PostMapping(value = "/analyze-excel-structure")
+  public ApiResponse<UploadExcelResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
+      @Valid @RequestBody StructureExcelRequest request) {
+        return messageUtils.createResponse("SYS_200", null);
+      }
+
+
+
   @Operation(summary = "엑셀 데이터 및 템플릿 저장", description = "수정된 데이터와 매핑 템플릿을 함께 저장합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/save-excel-data-and-template")
   public ApiResponse<String> saveExcelDataAndTemplate(
+      @LoginUser UserInfoDto userInfo,
       @Valid @RequestBody SaveExcelDataAndTemplateRequestDto request) {
 
-    excelService.saveExcelDataAndTemplate(request);
+    excelService.saveExcelDataAndTemplate(userInfo, request);
     return new ApiResponse<>(200, "SYS_200", "데이터와 매핑 템플릿이 저장되었습니다.", "SUCCESS");
   }
 

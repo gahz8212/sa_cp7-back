@@ -18,6 +18,7 @@ import org.apache.poi.poifs.crypt.Encryptor;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paycoms.cp7.api.common.constant.ExcelTemplateType;
 import com.paycoms.cp7.api.common.dto.*;
 import com.paycoms.cp7.api.common.mapper.ExcelMapper;
 import com.paycoms.cp7.api.common.mapper.ExcelTemplateMapper;
@@ -48,6 +50,7 @@ public class ExcelService {
   private final SqlSessionFactory sqlSessionFactory;
   private final ExcelTemplateMapper excelTemplateMapper;
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final DataFormatter dataFormatter = new DataFormatter();
 
   public void uploadExcel(String createKeyString, MultipartFile file, int sheetNo, int rowNo) throws IOException {
     Workbook workbook = WorkbookFactory.create(file.getInputStream());
@@ -56,6 +59,11 @@ public class ExcelService {
     try {
       List<Excel> dataList = new ArrayList<>();
       int bestRowNo = findBestHeaderRow(sheet);
+      
+      // rowNo가 0보다 크면 사용자가 선택한 헤더의 마지막 행 번호로 간주
+      // 따라서 데이터 시작 지점은 rowNo + 1이 됨
+      int dataStartRow = (rowNo > 0) ? (rowNo + 1) : (bestRowNo + 1);
+
       Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
       if (bestRow != null) {
@@ -74,7 +82,8 @@ public class ExcelService {
         }
         Excel excelObj = new Excel();
         excelObj.setFileKey(createKeyString);
-        excelObj.setRowType(i == bestRowNo ? "HEADER" : "DATA");
+        // dataStartRow 이전의 모든 행을 HEADER로 처리
+        excelObj.setRowType(i < dataStartRow ? "HEADER" : "DATA");
         excelObj.setRowIndex(i);
         excelObj.setDataJson(rowData);
         dataList.add(excelObj);
@@ -111,13 +120,7 @@ public class ExcelService {
 
   private String getCellValueAsString(Cell cell) {
     if (cell == null) return "";
-    switch (cell.getCellType()) {
-      case STRING: return cell.getStringCellValue();
-      case NUMERIC: return String.valueOf(cell.getNumericCellValue());
-      case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
-      case FORMULA: return cell.getCellFormula();
-      default: return "";
-    }
+    return dataFormatter.formatCellValue(cell);
   }
 
   public void updateModifiedRows(UserInfoDto userInfo, List<ModifiedRow> changes) {
@@ -135,13 +138,13 @@ public class ExcelService {
     if (request.getTemplate() != null) {
       SaveExcelDataAndTemplateRequestDto.TemplateDto templateDto = request.getTemplate();
       String userId = userInfo != null ? userInfo.getId() : "anonymous";
-      String sysType = templateDto.getTargetSysType();
+      String fileName = templateDto.getFileName();
 
-      ExcelMappingTemplate existing = excelTemplateMapper.selectTemplateBySysType(sysType, userId);
-      
+      ExcelMappingTemplate existing = excelTemplateMapper.selectTemplateByNameAndUser(fileName, userId);
+
       ExcelMappingTemplate template = new ExcelMappingTemplate();
       template.setTemplateName(fileName);
-      template.setTargetSysType(sysType);
+      template.setTargetSysType("UNKNOWN"); // Or remove this field entirely if DB allows
       template.setUserId(userId);
       
       try {
@@ -185,9 +188,13 @@ public class ExcelService {
     }
   }
 
-  public List<SysMetadataDto> getSysMetadata(String targetType, UserInfoDto userInfo) {
+  public List<SysMetadataDto> getSysMetadata(String fileName, UserInfoDto userInfo) {
     String userId = userInfo != null ? userInfo.getId() : "anonymous";
-    ExcelMappingTemplate savedTemplate = excelTemplateMapper.selectTemplateBySysType(targetType, userId);
+    ExcelMappingTemplate savedTemplate = null;
+    
+    if (fileName != null && !fileName.isEmpty()) {
+      savedTemplate = excelTemplateMapper.selectTemplateByNameAndUser(fileName, userId);
+    }
 
     if (savedTemplate != null) {
       try {
@@ -198,27 +205,6 @@ public class ExcelService {
       }
     }
 
-    List<SysMetadataDto> list = new ArrayList<>();
-    if ("EMPLOYEE".equalsIgnoreCase(targetType)) {
-      list.add(new SysMetadataDto("companyName", "사업자명", "회사 이름", true, null, null));
-      list.add(new SysMetadataDto("companyNumber", "사업자번호", "회사 등록번호", true, null, null));
-      list.add(new SysMetadataDto("memberName", "회원이름", "대표자이름", true, null, null));
-      list.add(new SysMetadataDto("itemName", "품목명", "품목 이름", true, null, null));
-      list.add(new SysMetadataDto("phone", "연락처", "휴대폰 번호", true, null, null));
-      list.add(new SysMetadataDto("amount", "청구액", "청구 액수", true, null, null));
-      list.add(new SysMetadataDto("bank", "은행명", "은행 이름", true, null, null));
-      list.add(new SysMetadataDto("account", "계좌번호", "계좌 번호", true, null, null));
-    } else if ("PAYROLL".equalsIgnoreCase(targetType)) {
-      list.add(new SysMetadataDto("memberId", "사번", "사번", true, null, null));
-      list.add(new SysMetadataDto("basePay", "기본급", "기본급여", true, null, null));
-    }
-    return list;
-  }
-
-  public String getExactSysTypeByFileName(String fileName) {
-    if (fileName == null) return "UNKNOWN";
-    if (fileName.contains("근로자")) return "EMPLOYEE";
-    if (fileName.contains("급여")) return "PAYROLL";
-    return "UNKNOWN";
+    return ExcelTemplateType.getMetadataByFileName(fileName);
   }
 }
