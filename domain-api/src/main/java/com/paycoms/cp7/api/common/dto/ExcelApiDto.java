@@ -69,6 +69,7 @@ public class ExcelApiDto {
     public static class SaveDataAndTemplateRequest {
         private List<ModifiedRow> modifiedRows;
         private TemplateDto template;
+        private List<List<Map<String, String>>> mappedData; // 실제 매핑된 데이터 목록 (행 단위)
 
         @Data
         public static class TemplateDto {
