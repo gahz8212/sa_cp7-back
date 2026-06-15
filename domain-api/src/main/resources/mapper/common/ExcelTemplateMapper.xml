@@ -26,11 +26,11 @@
         WHERE template_name = #{templateName} AND user_id = #{userId}
     </update>
 
-    <select id="selectTemplateBySysType" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
+    <!-- <select id="selectTemplateBySysType" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         SELECT * FROM excel_mapping_templates
         WHERE target_sys_type = #{targetSysType} AND user_id = #{userId}
         LIMIT 1
-    </select>
+    </select> -->
 
     <select id="selectTemplateByNameAndUser" resultType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         SELECT * FROM excel_mapping_templates

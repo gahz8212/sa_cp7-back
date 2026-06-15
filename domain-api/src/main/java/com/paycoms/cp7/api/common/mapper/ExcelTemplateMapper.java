@@ -8,6 +8,6 @@ import com.paycoms.cp7.api.common.model.ExcelMappingTemplate;
 public interface ExcelTemplateMapper {
     void insertTemplate(ExcelMappingTemplate template);
     void updateTemplate(ExcelMappingTemplate template);
-    ExcelMappingTemplate selectTemplateBySysType(@Param("targetSysType") String targetSysType, @Param("userId") String userId);
+    // ExcelMappingTemplate selectTemplateBySysType(@Param("targetSysType") String targetSysType, @Param("userId") String userId);
     ExcelMappingTemplate selectTemplateByNameAndUser(@Param("templateName") String templateName, @Param("userId") String userId);
 }

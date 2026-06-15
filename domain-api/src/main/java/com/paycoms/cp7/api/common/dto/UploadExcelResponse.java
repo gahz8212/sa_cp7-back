@@ -21,4 +21,7 @@ public class UploadExcelResponse {
     
     @Schema(description = "파일 이름 기반으로 판별된 백엔드 타겟 컬럼 메타데이터")
     private List<SysMetadataDto> targetColumns;
+    
+    @Schema(description = "저장된 헤더 구조 데이터 (Header/Data/Etc 영역 정보)")
+    private Object headerStructure;
 }

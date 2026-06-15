@@ -26,6 +26,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.paycoms.cp7.global.auth.annotation.Auth;
 import com.paycoms.cp7.global.auth.annotation.AuthPolicy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paycoms.cp7.api.common.model.ExcelMappingTemplate;
+
 @Slf4j
 @Tag(name = "Excel Controller", description = "Excel 관련 API")
 @RestController
@@ -34,6 +37,7 @@ import com.paycoms.cp7.global.auth.annotation.AuthPolicy;
 public class ExcelController {
   private final ExcelService excelService;
   private final MessageUtils messageUtils;
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Operation(summary = "엑셀 업로드", description = "엑셀 파일을 업로드합니다.")
   @Auth(AuthPolicy.PUBLIC)
@@ -59,6 +63,17 @@ public class ExcelController {
 
       // 통합 모델 적용: 파일명 기준으로 저장된 템플릿 정보를 반환
       response.setTargetColumns(excelService.getSysMetadata(originalFilename, userInfo));
+      
+      ExcelMappingTemplate savedTemplate = excelService.getSavedTemplate(originalFilename, userInfo);
+      if (savedTemplate != null && savedTemplate.getHeaderStructure() != null) {
+          try {
+              Object headerStructureObj = objectMapper.readValue(savedTemplate.getHeaderStructure(), Object.class);
+              response.setHeaderStructure(headerStructureObj);
+          } catch (Exception e) {
+              log.error("Failed to parse headerStructure", e);
+          }
+      }
+      
       response.setTargetSysType("UNKNOWN"); // You can keep it as UNKNOWN or remove from response model later.
     } catch (IOException e) {
       throw new BusinessException("COMM_001", e.getMessage());

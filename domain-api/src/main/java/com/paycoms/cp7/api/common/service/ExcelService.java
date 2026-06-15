@@ -188,6 +188,14 @@ public class ExcelService {
     }
   }
 
+  public ExcelMappingTemplate getSavedTemplate(String fileName, UserInfoDto userInfo) {
+    String userId = userInfo != null ? userInfo.getId() : "anonymous";
+    if (fileName != null && !fileName.isEmpty()) {
+      return excelTemplateMapper.selectTemplateByNameAndUser(fileName, userId);
+    }
+    return null;
+  }
+
   public List<SysMetadataDto> getSysMetadata(String fileName, UserInfoDto userInfo) {
     String userId = userInfo != null ? userInfo.getId() : "anonymous";
     ExcelMappingTemplate savedTemplate = null;
