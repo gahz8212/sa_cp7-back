@@ -26,6 +26,11 @@ import lombok.extern.slf4j.Slf4j;
 import com.paycoms.cp7.global.auth.annotation.Auth;
 import com.paycoms.cp7.global.auth.annotation.AuthPolicy;
 
+import org.springframework.web.bind.annotation.GetMapping;
+import java.util.Arrays;
+import java.util.ArrayList;
+import com.paycoms.cp7.api.common.constant.ExcelTemplateType;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paycoms.cp7.api.common.model.ExcelMappingTemplate;
 
@@ -39,18 +44,25 @@ public class ExcelController {
   private final MessageUtils messageUtils;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
+  @Operation(summary = "엑셀 템플릿 타입 목록 조회", description = "시스템에 정의된 엑셀 템플릿 타입(WORKER, PARTS 등)과 메타데이터 목록을 조회합니다.")
+  @Auth(AuthPolicy.PUBLIC)
+  @GetMapping(value = "/excel-templates")
+  public ApiResponse<List<ExcelTemplateType>> getExcelTemplates() {
+      return messageUtils.createResponse("SYS_200", Arrays.asList(ExcelTemplateType.values()));
+  }
+
   @Operation(summary = "엑셀 업로드", description = "엑셀 파일을 업로드합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/upload-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ApiResponse<UploadExcelResponse> uploadExcel(@LoginUser UserInfoDto userInfo,
-      @Valid @ModelAttribute UploadExcelRequest request) {
+  public ApiResponse<ExcelApiDto.UploadResponse> uploadExcel(@LoginUser UserInfoDto userInfo,
+      @Valid @ModelAttribute ExcelApiDto.UploadRequest request) {
     MultipartFile file = request.getFile();
     int sheetNo = request.getSheetNo();
     int rowNo = request.getRowNo();
     int currentPage = request.getPage();
 
     String originalFilename = file.getOriginalFilename();
-    UploadExcelResponse response = new UploadExcelResponse();
+    ExcelApiDto.UploadResponse response = new ExcelApiDto.UploadResponse();
 
     // int lastDotIndex = originalFilename != null ? originalFilename.lastIndexOf(".") : 0;
     String userId = (userInfo != null) ? userInfo.getId() : (originalFilename != null ? originalFilename : "unknown");
@@ -86,8 +98,8 @@ public class ExcelController {
   @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/analyze-excel-structure")
-  public ApiResponse<UploadExcelResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
-      @Valid @RequestBody StructureExcelRequest request) {
+  public ApiResponse<ExcelApiDto.UploadResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
+      @Valid @RequestBody ExcelApiDto.StructureRequest request) {
         return messageUtils.createResponse("SYS_200", null);
       }
 
@@ -98,7 +110,7 @@ public class ExcelController {
   @PostMapping(value = "/save-excel-data-and-template")
   public ApiResponse<String> saveExcelDataAndTemplate(
       @LoginUser UserInfoDto userInfo,
-      @Valid @RequestBody SaveExcelDataAndTemplateRequestDto request) {
+      @Valid @RequestBody ExcelApiDto.SaveDataAndTemplateRequest request) {
 
     excelService.saveExcelDataAndTemplate(userInfo, request);
     return new ApiResponse<>(200, "SYS_200", "데이터와 매핑 템플릿이 저장되었습니다.", "SUCCESS");
@@ -109,9 +121,9 @@ public class ExcelController {
   @PostMapping(value = "/save-excel-changes")
   public ApiResponse<String> saveExcelChanges(
       @LoginUser UserInfoDto userInfo,
-      @Valid @RequestBody UpdateExcelRequest request) {
+      @Valid @RequestBody ExcelApiDto.UpdateRequest request) {
 
-    List<ModifiedRow> changes = request.getModifiedRows();
+    List<ExcelApiDto.ModifiedRow> changes = request.getModifiedRows();
     excelService.updateModifiedRows(userInfo, changes);
     return new ApiResponse<>(200, "SYS_200", "총 " + changes.size() + "건의 수정 사항이 반영되었습니다.", "SUCCESS");
   }

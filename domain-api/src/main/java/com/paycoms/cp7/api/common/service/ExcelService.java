@@ -123,20 +123,20 @@ public class ExcelService {
     return dataFormatter.formatCellValue(cell);
   }
 
-  public void updateModifiedRows(UserInfoDto userInfo, List<ModifiedRow> changes) {
-    for (ModifiedRow row : changes) {
+  public void updateModifiedRows(UserInfoDto userInfo, List<ExcelApiDto.ModifiedRow> changes) {
+    for (ExcelApiDto.ModifiedRow row : changes) {
       log.info("행 {}번 업데이트 수행: {}", row.getRowIndex(), row.getModified());
     }
   }
 
   @Transactional
-  public void saveExcelDataAndTemplate(UserInfoDto userInfo, SaveExcelDataAndTemplateRequestDto request) {
+  public void saveExcelDataAndTemplate(UserInfoDto userInfo, ExcelApiDto.SaveDataAndTemplateRequest request) {
     if (request.getModifiedRows() != null) {
       updateModifiedRows(userInfo, request.getModifiedRows());
     }
 
     if (request.getTemplate() != null) {
-      SaveExcelDataAndTemplateRequestDto.TemplateDto templateDto = request.getTemplate();
+      ExcelApiDto.SaveDataAndTemplateRequest.TemplateDto templateDto = request.getTemplate();
       String userId = userInfo != null ? userInfo.getId() : "anonymous";
       String fileName = templateDto.getFileName();
 
@@ -196,7 +196,7 @@ public class ExcelService {
     return null;
   }
 
-  public List<SysMetadataDto> getSysMetadata(String fileName, UserInfoDto userInfo) {
+  public List<ExcelApiDto.SysMetadata> getSysMetadata(String fileName, UserInfoDto userInfo) {
     String userId = userInfo != null ? userInfo.getId() : "anonymous";
     ExcelMappingTemplate savedTemplate = null;
     
@@ -207,7 +207,7 @@ public class ExcelService {
     if (savedTemplate != null) {
       try {
         return objectMapper.readValue(savedTemplate.getMappingRules(), 
-            objectMapper.getTypeFactory().constructCollectionType(List.class, SysMetadataDto.class));
+            objectMapper.getTypeFactory().constructCollectionType(List.class, ExcelApiDto.SysMetadata.class));
       } catch (Exception e) {
         log.error("Failed to parse saved mapping rules", e);
       }
