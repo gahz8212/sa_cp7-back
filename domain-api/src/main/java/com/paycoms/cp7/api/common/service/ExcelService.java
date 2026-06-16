@@ -60,9 +60,9 @@ public class ExcelService {
       List<Excel> dataList = new ArrayList<>();
       int bestRowNo = findBestHeaderRow(sheet);
       
-      // rowNo가 0보다 크면 사용자가 선택한 헤더의 마지막 행 번호로 간주
+      // rowNo가 0 이상이면 사용자가 선택한 헤더의 마지막 행 번호로 간주
       // 따라서 데이터 시작 지점은 rowNo + 1이 됨
-      int dataStartRow = (rowNo > 0) ? (rowNo + 1) : (bestRowNo + 1);
+      // int dataStartRow = (rowNo >= 0) ? (rowNo + 1) : (bestRowNo + 1);
 
       Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
@@ -81,9 +81,9 @@ public class ExcelService {
           rowData.add(cell != null ? getCellValueAsString(cell) : "");
         }
         Excel excelObj = new Excel();
-        excelObj.setFileKey(createKeyString);
+        // excelObj.setFileKey(createKeyString);
         // dataStartRow 이전의 모든 행을 HEADER로 처리
-        excelObj.setRowType(i < dataStartRow ? "HEADER" : "DATA");
+        // excelObj.setRowType(i < dataStartRow ? "HEADER" : "DATA");
         excelObj.setRowIndex(i);
         excelObj.setDataJson(rowData);
         dataList.add(excelObj);

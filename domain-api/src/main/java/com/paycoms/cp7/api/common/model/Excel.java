@@ -11,8 +11,8 @@ import java.util.List;
 @Builder
 @Alias("Excel")
 public class Excel {
-    private String fileKey;    // file_key
-    private String rowType;    // row_type (HEADER, DATA)
-    private int rowIndex;      // row_index
+    // private String fileKey; // file_key
+    // private String rowType; // row_type (HEADER, DATA)
+    private int rowIndex; // row_index
     private List<String> dataJson; // data_json (JSON Array)
 }

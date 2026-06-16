@@ -48,7 +48,7 @@ public class ExcelController {
   @Auth(AuthPolicy.PUBLIC)
   @GetMapping(value = "/excel-templates")
   public ApiResponse<List<ExcelTemplateType>> getExcelTemplates() {
-      return messageUtils.createResponse("SYS_200", Arrays.asList(ExcelTemplateType.values()));
+    return messageUtils.createResponse("SYS_200", Arrays.asList(ExcelTemplateType.values()));
   }
 
   @Operation(summary = "엑셀 업로드", description = "엑셀 파일을 업로드합니다.")
@@ -64,7 +64,8 @@ public class ExcelController {
     String originalFilename = file.getOriginalFilename();
     ExcelApiDto.UploadResponse response = new ExcelApiDto.UploadResponse();
 
-    // int lastDotIndex = originalFilename != null ? originalFilename.lastIndexOf(".") : 0;
+    // int lastDotIndex = originalFilename != null ?
+    // originalFilename.lastIndexOf(".") : 0;
     String userId = (userInfo != null) ? userInfo.getId() : (originalFilename != null ? originalFilename : "unknown");
     response.setUploadExcelKey(userId + "-" + System.currentTimeMillis());
 
@@ -75,18 +76,19 @@ public class ExcelController {
 
       // 통합 모델 적용: 파일명 기준으로 저장된 템플릿 정보를 반환
       response.setTargetColumns(excelService.getSysMetadata(originalFilename, userInfo));
-      
+
       ExcelMappingTemplate savedTemplate = excelService.getSavedTemplate(originalFilename, userInfo);
       if (savedTemplate != null && savedTemplate.getHeaderStructure() != null) {
-          try {
-              Object headerStructureObj = objectMapper.readValue(savedTemplate.getHeaderStructure(), Object.class);
-              response.setHeaderStructure(headerStructureObj);
-          } catch (Exception e) {
-              log.error("Failed to parse headerStructure", e);
-          }
+        try {
+          Object headerStructureObj = objectMapper.readValue(savedTemplate.getHeaderStructure(), Object.class);
+          response.setHeaderStructure(headerStructureObj);
+        } catch (Exception e) {
+          log.error("Failed to parse headerStructure", e);
+        }
       }
-      
-      response.setTargetSysType("UNKNOWN"); // You can keep it as UNKNOWN or remove from response model later.
+
+      // response.setTargetSysType("UNKNOWN"); // You can keep it as UNKNOWN or remove
+      // from response model later.
     } catch (IOException e) {
       throw new BusinessException("COMM_001", e.getMessage());
     }
@@ -94,16 +96,13 @@ public class ExcelController {
     return messageUtils.createResponse("SYS_200", response);
   }
 
-
   @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/analyze-excel-structure")
   public ApiResponse<ExcelApiDto.UploadResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
-      @Valid @RequestBody ExcelApiDto.StructureRequest request) {
-        return messageUtils.createResponse("SYS_200", null);
-      }
-
-
+      @RequestBody ExcelApiDto.StructureRequest request) {
+    return messageUtils.createResponse("SYS_200", null);
+  }
 
   @Operation(summary = "엑셀 데이터 및 템플릿 저장", description = "수정된 데이터와 매핑 템플릿을 함께 저장합니다.")
   @Auth(AuthPolicy.PUBLIC)

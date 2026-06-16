@@ -13,7 +13,8 @@ import com.paycoms.cp7.api.common.model.Excel;
 
 public class ExcelApiDto {
 
-    @Getter @Setter
+    @Getter
+    @Setter
     @Schema(description = "엑셀 업로드 요청 DTO")
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
     public static class UploadRequest {
@@ -24,41 +25,45 @@ public class ExcelApiDto {
         @Schema(description = "시트 번호 (default: 0)", defaultValue = "0", example = "0")
         private int sheetNo = 0;
 
-        @Schema(description = "행 번호 (default: 1)", defaultValue = "0", example = "0")
-        private int rowNo = 0;
+        @Schema(description = "행 번호 (default: -1)", defaultValue = "-1", example = "-1")
+        private int rowNo = -1;
 
         @Schema(description = "페이지 번호 (default: 1)", defaultValue = "1", example = "1")
         private int page = 1;
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     @Schema(name = "UploadExcelResponse", description = "엑셀 업로드 응답 DTO")
     public static class UploadResponse {
         @Schema(description = "엑셀 업로드 키", example = "test@example.com-1234567890")
         private String uploadExcelKey;
         private List<Excel> dataList;
         private int totalCount;
-        @Schema(description = "추론된 대상 시스템 타입 (예: EMPLOYEE, PAYROLL)")
-        private String targetSysType;
+        // @Schema(description = "추론된 대상 시스템 타입 (예: EMPLOYEE, PAYROLL)")
+        // private String targetSysType;
         @Schema(description = "파일 이름 기반으로 판별된 백엔드 타겟 컬럼 메타데이터")
         private List<SysMetadata> targetColumns;
         @Schema(description = "저장된 헤더 구조 데이터 (Header/Data/Etc 영역 정보)")
         private Object headerStructure;
     }
 
-    @Getter @Setter @NoArgsConstructor
+    @Getter
+    @Setter
+    @NoArgsConstructor
     public static class StructureRequest {
-        @NotEmpty(message = "헤더 구조 데이터가 비어있습니다.")
-        private List<ExcelCell> flattenedHeaders;
+        // @NotEmpty(message = "헤더 구조 데이터가 비어있습니다.")
+        // private List<ExcelCell> flattenedHeaders;
 
-        @NotEmpty(message = "샘플 데이터 구조가 비어있습니다.")
-        private List<ExcelCell> flattenedData;
+        // @NotEmpty(message = "샘플 데이터 구조가 비어있습니다.")
+        // private List<ExcelCell> flattenedData;
 
-        private List<ExcelCell> flattenedEtc;
+        // private List<ExcelCell> flattenedEtc;
         private String fileName;
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     public static class UpdateRequest {
         @NotEmpty(message = "수정된 데이터 내역이 비어있습니다.")
         private List<ModifiedRow> modifiedRows;
@@ -73,14 +78,16 @@ public class ExcelApiDto {
 
         @Data
         public static class TemplateDto {
-            private String targetSysType;
+            // private String targetSysType;
             private String fileName;
             private Map<String, Object> headerStructure;
             private List<SysMetadata> targetColumns;
         }
     }
 
-    @Data @NoArgsConstructor @AllArgsConstructor
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SysMetadata {
         private String backColumn;
         private String name;
@@ -90,7 +97,8 @@ public class ExcelApiDto {
         private Integer excelColIndex;
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     public static class ModifiedRow {
         private Integer rowIndex;
         private Map<String, Object> original;
@@ -108,7 +116,8 @@ public class ExcelApiDto {
         private Integer colspan;
     }
 
-    @Getter @Setter
+    @Getter
+    @Setter
     @Schema(description = "엑셀 다운로드 요청 DTO")
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
     public static class DownloadRequest {

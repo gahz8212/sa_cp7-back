@@ -4,21 +4,21 @@
 <mapper namespace="com.paycoms.cp7.api.common.mapper.ExcelMapper">
     <insert id="insertExcel" parameterType="Excel"> 
         INSERT INTO excel_data ( 
-            file_key, 
-            row_type, 
+            <!-- file_key, 
+            row_type,  -->
             row_index, 
             data_json 
         ) VALUES ( 
-            #{fileKey}, 
-            #{rowType}, 
+           <!-- #{fileKey},  
+            #{rowType},   -->
             #{rowIndex}, 
             #{dataJson, typeHandler=com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler} 
         ) 
     </insert>
 
     <resultMap id="ExcelResultMap" type="Excel">
-        <result property="fileKey" column="file_key"/>
-        <result property="rowType" column="row_type"/>
+        <!-- <result property="fileKey" column="file_key"/> -->
+        <!-- <result property="rowType" column="row_type"/> -->
         <result property="rowIndex" column="row_index"/>
         <result property="dataJson" column="data_json" typeHandler="com.paycoms.cp7.api.infrastructure.mybatis.JsonTypeHandler"/>
     </resultMap>
