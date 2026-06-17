@@ -5,22 +5,22 @@
     <insert id="insertTemplate" parameterType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         INSERT INTO excel_mapping_templates (
             template_name,
-            header_structure,
+            structures,
             mapping_rules,
-            target_sys_type,
+          
             user_id
         ) VALUES (
             #{templateName},
-            #{headerStructure},
+            #{structures},
             #{mappingRules},
-            #{targetSysType},
+            
             #{userId}
         )
     </insert>
 
     <update id="updateTemplate" parameterType="com.paycoms.cp7.api.common.model.ExcelMappingTemplate">
         UPDATE excel_mapping_templates SET
-            header_structure = #{headerStructure},
+            structures = #{structures},
             mapping_rules = #{mappingRules},
             updated_at = NOW()
         WHERE template_name = #{templateName} AND user_id = #{userId}

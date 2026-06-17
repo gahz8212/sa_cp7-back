@@ -25,8 +25,8 @@ public class ExcelApiDto {
         @Schema(description = "시트 번호 (default: 0)", defaultValue = "0", example = "0")
         private int sheetNo = 0;
 
-        @Schema(description = "행 번호 (default: -1)", defaultValue = "-1", example = "-1")
-        private int rowNo = -1;
+        // @Schema(description = "행 번호 (default: -1)", defaultValue = "-1", example = "-1")
+        // private int rowNo = -1;
 
         @Schema(description = "페이지 번호 (default: 1)", defaultValue = "1", example = "1")
         private int page = 1;
@@ -73,14 +73,14 @@ public class ExcelApiDto {
     @Data
     public static class SaveDataAndTemplateRequest {
         private List<ModifiedRow> modifiedRows;
-        private TemplateDto template;
+        private TemplateDto templateData;
         private List<List<Map<String, String>>> mappedData; // 실제 매핑된 데이터 목록 (행 단위)
 
         @Data
         public static class TemplateDto {
             // private String targetSysType;
             private String fileName;
-            private Map<String, Object> headerStructure;
+            private Map<String, Object> structures;
             private List<SysMetadata> targetColumns;
         }
     }

@@ -58,8 +58,9 @@ public class ExcelController {
       @Valid @ModelAttribute ExcelApiDto.UploadRequest request) {
     MultipartFile file = request.getFile();
     int sheetNo = request.getSheetNo();
-    int rowNo = request.getRowNo();
     int currentPage = request.getPage();
+    // int rowNo = request.getRowNo();
+    // Implement this method to determine the best row number based on your logic
 
     String originalFilename = file.getOriginalFilename();
     ExcelApiDto.UploadResponse response = new ExcelApiDto.UploadResponse();
@@ -70,7 +71,7 @@ public class ExcelController {
     response.setUploadExcelKey(userId + "-" + System.currentTimeMillis());
 
     try {
-      excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo, rowNo);
+      excelService.uploadExcel(response.getUploadExcelKey(), file, sheetNo);
       response.setDataList(excelService.getExcelList(response.getUploadExcelKey(), currentPage, 1000));
       response.setTotalCount(excelService.getExcelCount(response.getUploadExcelKey()));
 
@@ -78,9 +79,9 @@ public class ExcelController {
       response.setTargetColumns(excelService.getSysMetadata(originalFilename, userInfo));
 
       ExcelMappingTemplate savedTemplate = excelService.getSavedTemplate(originalFilename, userInfo);
-      if (savedTemplate != null && savedTemplate.getHeaderStructure() != null) {
+      if (savedTemplate != null && savedTemplate.getStructures() != null) {
         try {
-          Object headerStructureObj = objectMapper.readValue(savedTemplate.getHeaderStructure(), Object.class);
+          Object headerStructureObj = objectMapper.readValue(savedTemplate.getStructures(), Object.class);
           response.setHeaderStructure(headerStructureObj);
         } catch (Exception e) {
           log.error("Failed to parse headerStructure", e);
@@ -96,6 +97,7 @@ public class ExcelController {
     return messageUtils.createResponse("SYS_200", response);
   }
 
+  // 구조 데이터는 저장/사용 안하기로 함.
   @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/analyze-excel-structure")
@@ -110,7 +112,9 @@ public class ExcelController {
   public ApiResponse<String> saveExcelDataAndTemplate(
       @LoginUser UserInfoDto userInfo,
       @Valid @RequestBody ExcelApiDto.SaveDataAndTemplateRequest request) {
-
+    log.info("Received request to save Excel data and template for user {},{}",
+        userInfo != null ? userInfo.getId() : "anonymous",
+        request.getTemplateData() != null ? request.getTemplateData() : "no-template");
     excelService.saveExcelDataAndTemplate(userInfo, request);
     return new ApiResponse<>(200, "SYS_200", "데이터와 매핑 템플릿이 저장되었습니다.", "SUCCESS");
   }

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public class ExcelMappingTemplate {
     private Long id;
     private String templateName;
-    private String headerStructure; // JSON String
+    private String structures; // JSON String
     private String mappingRules;    // JSON String (TargetColumns JSON)
     // private String targetSysType;   // EMPLOYEE, PAYROLL 등
     private String userId;

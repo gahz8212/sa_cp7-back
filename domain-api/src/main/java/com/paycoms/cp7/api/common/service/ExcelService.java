@@ -52,18 +52,15 @@ public class ExcelService {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final DataFormatter dataFormatter = new DataFormatter();
 
-  public void uploadExcel(String createKeyString, MultipartFile file, int sheetNo, int rowNo) throws IOException {
+  public void uploadExcel(String fileKey, MultipartFile file, int sheetNo) throws IOException {
     Workbook workbook = WorkbookFactory.create(file.getInputStream());
     Sheet sheet = workbook.getSheetAt(sheetNo);
 
     try {
       List<Excel> dataList = new ArrayList<>();
+      List<Excel> emptyBuffer = new ArrayList<>();
       int bestRowNo = findBestHeaderRow(sheet);
       
-      // rowNo가 0 이상이면 사용자가 선택한 헤더의 마지막 행 번호로 간주
-      // 따라서 데이터 시작 지점은 rowNo + 1이 됨
-      // int dataStartRow = (rowNo >= 0) ? (rowNo + 1) : (bestRowNo + 1);
-
       Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
       if (bestRow != null) {
@@ -76,22 +73,44 @@ public class ExcelService {
       for (int i = 0; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
         List<String> rowData = new ArrayList<>();
+        boolean isAllEmpty = true;
         for (int j = 0; j < headers.size(); j++) {
           Cell cell = (row != null) ? row.getCell(j) : null;
-          rowData.add(cell != null ? getCellValueAsString(cell) : "");
+          String val = (cell != null ? getCellValueAsString(cell) : "");
+          rowData.add(val);
+          if (val != null && !val.trim().isEmpty()) {
+            isAllEmpty = false;
+          }
         }
+
         Excel excelObj = new Excel();
-        // excelObj.setFileKey(createKeyString);
-        // dataStartRow 이전의 모든 행을 HEADER로 처리
-        // excelObj.setRowType(i < dataStartRow ? "HEADER" : "DATA");
+        excelObj.setFileKey(fileKey);
         excelObj.setRowIndex(i);
         excelObj.setDataJson(rowData);
-        dataList.add(excelObj);
 
-        if (dataList.size() >= 1000 || i == sheet.getLastRowNum()) {
+        if (isAllEmpty) {
+          emptyBuffer.add(excelObj);
+          if (emptyBuffer.size() >= 10) {
+            // 10개 이상의 연속된 빈 행 발견 시, 첫 번째 빈 행만 추가하고 중단
+            dataList.add(emptyBuffer.get(0));
+            break;
+          }
+        } else {
+          // 데이터가 있는 행을 만나면 대기 중인 빈 행들을 모두 추가
+          dataList.addAll(emptyBuffer);
+          emptyBuffer.clear();
+          dataList.add(excelObj);
+        }
+
+        if (dataList.size() >= 1000) {
           saveExcels(new ArrayList<>(dataList));
           dataList.clear();
         }
+      }
+      
+      // 루프 종료 후 남은 데이터 저장 (10개 미만의 빈 행으로 끝난 경우 등)
+      if (!dataList.isEmpty()) {
+        saveExcels(new ArrayList<>(dataList));
       }
     } finally {
       workbook.close();
@@ -104,11 +123,13 @@ public class ExcelService {
     int scanLimit = Math.min(sheet.getLastRowNum(), 30);
     for (int i = 0; i <= scanLimit; i++) {
       Row row = sheet.getRow(i);
-      if (row == null) continue;
+      if (row == null)
+        continue;
       int currentCells = 0;
       for (int j = 0; j < row.getLastCellNum(); j++) {
         Cell cell = row.getCell(j);
-        if (cell != null && !getCellValueAsString(cell).trim().isEmpty()) currentCells++;
+        if (cell != null && !getCellValueAsString(cell).trim().isEmpty())
+          currentCells++;
       }
       if (currentCells > maxCells) {
         maxCells = currentCells;
@@ -119,7 +140,8 @@ public class ExcelService {
   }
 
   private String getCellValueAsString(Cell cell) {
-    if (cell == null) return "";
+    if (cell == null)
+      return "";
     return dataFormatter.formatCellValue(cell);
   }
 
@@ -135,8 +157,8 @@ public class ExcelService {
       updateModifiedRows(userInfo, request.getModifiedRows());
     }
 
-    if (request.getTemplate() != null) {
-      ExcelApiDto.SaveDataAndTemplateRequest.TemplateDto templateDto = request.getTemplate();
+    if (request.getTemplateData() != null) {
+      ExcelApiDto.SaveDataAndTemplateRequest.TemplateDto templateDto = request.getTemplateData();
       String userId = userInfo != null ? userInfo.getId() : "anonymous";
       String fileName = templateDto.getFileName();
 
@@ -144,16 +166,17 @@ public class ExcelService {
 
       ExcelMappingTemplate template = new ExcelMappingTemplate();
       template.setTemplateName(fileName);
-      template.setTargetSysType("UNKNOWN"); // Or remove this field entirely if DB allows
+      // template.setTargetSysType("UNKNOWN"); // Or remove this field entirely if DB
+      // allows
       template.setUserId(userId);
-      
+
       try {
-        template.setHeaderStructure(objectMapper.writeValueAsString(templateDto.getHeaderStructure()));
+        template.setStructures(objectMapper.writeValueAsString(templateDto.getStructures()));
         template.setMappingRules(objectMapper.writeValueAsString(templateDto.getTargetColumns()));
       } catch (Exception e) {
         throw new BusinessException("COMM_001", "JSON 변환 오류");
       }
-
+      log.info("Saving template for user {}: {}", userId, template);
       if (existing != null) {
         excelTemplateMapper.updateTemplate(template);
       } else {
@@ -199,14 +222,14 @@ public class ExcelService {
   public List<ExcelApiDto.SysMetadata> getSysMetadata(String fileName, UserInfoDto userInfo) {
     String userId = userInfo != null ? userInfo.getId() : "anonymous";
     ExcelMappingTemplate savedTemplate = null;
-    
+
     if (fileName != null && !fileName.isEmpty()) {
       savedTemplate = excelTemplateMapper.selectTemplateByNameAndUser(fileName, userId);
     }
 
     if (savedTemplate != null) {
       try {
-        return objectMapper.readValue(savedTemplate.getMappingRules(), 
+        return objectMapper.readValue(savedTemplate.getMappingRules(),
             objectMapper.getTypeFactory().constructCollectionType(List.class, ExcelApiDto.SysMetadata.class));
       } catch (Exception e) {
         log.error("Failed to parse saved mapping rules", e);
