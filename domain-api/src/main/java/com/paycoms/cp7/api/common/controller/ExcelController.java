@@ -98,13 +98,13 @@ public class ExcelController {
   }
 
   // 구조 데이터는 저장/사용 안하기로 함.
-  @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
-  @Auth(AuthPolicy.PUBLIC)
-  @PostMapping(value = "/analyze-excel-structure")
-  public ApiResponse<ExcelApiDto.UploadResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
-      @RequestBody ExcelApiDto.StructureRequest request) {
-    return messageUtils.createResponse("SYS_200", null);
-  }
+  // @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
+  // @Auth(AuthPolicy.PUBLIC)
+  // @PostMapping(value = "/analyze-excel-structure")
+  // public ApiResponse<ExcelApiDto.UploadResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
+  //     @RequestBody ExcelApiDto.StructureRequest request) {
+  //   return messageUtils.createResponse("SYS_200", null);
+  // }
 
   @Operation(summary = "엑셀 데이터 및 템플릿 저장", description = "수정된 데이터와 매핑 템플릿을 함께 저장합니다.")
   @Auth(AuthPolicy.PUBLIC)

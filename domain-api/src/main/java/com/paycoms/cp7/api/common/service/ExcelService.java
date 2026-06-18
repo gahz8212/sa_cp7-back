@@ -60,7 +60,7 @@ public class ExcelService {
       List<Excel> dataList = new ArrayList<>();
       List<Excel> emptyBuffer = new ArrayList<>();
       int bestRowNo = findBestHeaderRow(sheet);
-      
+
       Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
       if (bestRow != null) {
@@ -92,7 +92,7 @@ public class ExcelService {
           emptyBuffer.add(excelObj);
           if (emptyBuffer.size() >= 10) {
             // 10개 이상의 연속된 빈 행 발견 시, 첫 번째 빈 행만 추가하고 중단
-            dataList.add(emptyBuffer.get(0));
+            // dataList.add(emptyBuffer.get(0));
             break;
           }
         } else {
@@ -107,7 +107,7 @@ public class ExcelService {
           dataList.clear();
         }
       }
-      
+
       // 루프 종료 후 남은 데이터 저장 (10개 미만의 빈 행으로 끝난 경우 등)
       if (!dataList.isEmpty()) {
         saveExcels(new ArrayList<>(dataList));

@@ -7,7 +7,7 @@ import java.util.Collections;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.paycoms.cp7.api.common.dto.ExcelApiDto;
 //같은 컬럼을 사용하는 엑셀파일이 여러개 있을 수 있기 때문에, 엑셀파일명과 매핑되는 컬럼정보를 enum으로 관리
-
+//추후에 타입과 정규식을 넣어 놓고 검증시 사용할 수 있게 해보자.
 @JsonFormat(shape = JsonFormat.Shape.OBJECT)
 public enum ExcelTemplateType {
     SIMPLE(Arrays.asList("근로자_간편서식.xlsx", "자재_간편서식.xlsx",  "장비_간편서식.xlsx"), Arrays.asList(
@@ -30,13 +30,13 @@ public enum ExcelTemplateType {
             new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null))),
     ETC1(Arrays.asList("자재_출력일보.xlsx"), Arrays.asList(
             new ExcelApiDto.SysMetadata("companyName", "업체명", "회사 이름", true, null, null),
-            new ExcelApiDto.SysMetadata("areaName", "현장명", "현장 이름", true, null, null),
             new ExcelApiDto.SysMetadata("companyNumber", "사업자등록번호", "회사 등록번호", true, null, null),
             new ExcelApiDto.SysMetadata("memberName", "대표자명", "대표자이름", true, null, null),
             new ExcelApiDto.SysMetadata("itemName", "품목명", "품목 이름", true, null, null),
             new ExcelApiDto.SysMetadata("phone", "연락처", "휴대폰 번호", true, null, null),
-            new ExcelApiDto.SysMetadata("amount", "계약금", "계약 액수", true, null, null),
+            new ExcelApiDto.SysMetadata("startDay", "계약일", "계약 일자", true, null, null),
             new ExcelApiDto.SysMetadata("address", "현장 주소", "현장 주소", true, null, null)// new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null)
+            // new ExcelApiDto.SysMetadata("areaName", "현장명", "현장 이름", true, null, null),
     )),
     ETC2(Arrays.asList("근로자_간편서식_2열1단.xlsx","근로자_간편서식_2열1단2.xlsx"), Arrays.asList(// new ExcelApiDto.SysMetadata("companyName", "사업자명", "회사이름", true, null, null),
     new ExcelApiDto.SysMetadata("companyN", "사업자번호", "회사 등록번호", true, null, null),
