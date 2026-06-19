@@ -148,3 +148,22 @@
   - **원인 추정 3:** DB의 `mapping_rules` 컬럼에 저장된 JSON 문자열을 `List<SysMetadataDto>` 객체로 역직렬화(Deserialization)하는 과정에서 에러가 발생하여 `catch` 블록으로 빠지고, 결과적으로 하드코딩된 기본(`if-else`) 메타데이터 목록을 반환하고 있을 가능성. (현재 역직렬화 실패 시 에러 로그만 남기고 별도 예외를 던지지 않음)
   - **조치 계획:** 다음 작업 시 `getSysMetadata` 메서드 내의 `selectTemplateBySysType` 쿼리 파라미터와 `objectMapper.readValue` 부분의 로그를 확인하여 데이터 페치 및 역직렬화 실패 원인 규명 필요.
 
+## 엑셀 메타데이터 관리 및 구조 개선 논의 (2026-06-19)
+
+### 1. `SysMetadata` 필드 확장 (`dataType`, `regex`)
+- **이슈:** `ExcelApiDto.SysMetadata`에 `dataType`과 `regex`가 추가되었으나, 기존 `ExcelTemplateType` Enum에서 파라미터 개수가 불일치하여 컴파일 에러 발생 가능성 존재.
+- **해결 방안:** Enum에서 `SysMetadata` 객체 생성 시 파라미터를 추가로 넘겨주거나, 가독성 및 유지보수성을 위해 `@Builder` 패턴을 도입하여 해결.
+
+### 2. 프론트엔드로 보안 필드(`backColumn`) 숨김 처리
+- **현황:** 프론트엔드로 실제 DB 테이블 컬럼명인 `backColumn`을 노출하지 않으려고 함.
+- **결과:** 이미 `ExcelApiDto.SysMetadata` 클래스의 `backColumn` 필드에 `@JsonIgnore`가 적용되어 있어, 별도의 추가 작업 없이도 프론트엔드 응답(JSON)에서 자동 제외됨을 확인.
+
+### 3. 하드코딩된 Enum(`ExcelTemplateType`) 리팩토링 전략
+"엑셀 파일 하나당 테이블 하나"라는 규칙에 맞게, 메타데이터 관리를 Enum에서 분리하는 3가지 방안 논의:
+1. **DB 테이블화 (추천):** `excel_template_metadata` 테이블을 만들어 관리. 재배포 없이 스펙 변경 가능.
+2. **DTO 어노테이션 기반 추출:** 기존 비즈니스 DTO 필드에 `@ExcelColumn` 어노테이션을 달고 리플렉션을 통해 동적으로 `SysMetadata` 리스트 추출. (Single Source of Truth)
+3. **JSON/YAML 설정 파일 분리:** 리소스 파일에 메타데이터 정의.
+
+**결론:**
+- DTO 어노테이션 방식을 도입하려면 커스텀 어노테이션 생성, 유틸리티 작성, 각 비즈니스 DTO 수정, 기존 Enum 삭제 등 여러 파일에 걸친 전반적인 구조 변경이 필요함.
+- 당장 대대적인 수정이 부담될 경우, 우선 기존 Enum에 파라미터를 추가하여 기능을 구현하고, 추후 여유가 있을 때 어노테이션 기반 추출 방식 등 근본적인 구조 개선을 진행하기로 보류함.

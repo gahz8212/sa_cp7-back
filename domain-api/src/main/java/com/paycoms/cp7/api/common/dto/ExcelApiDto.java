@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import com.paycoms.cp7.api.common.model.Excel;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class ExcelApiDto {
 
@@ -25,7 +26,8 @@ public class ExcelApiDto {
         @Schema(description = "시트 번호 (default: 0)", defaultValue = "0", example = "0")
         private int sheetNo = 0;
 
-        // @Schema(description = "행 번호 (default: -1)", defaultValue = "-1", example = "-1")
+        // @Schema(description = "행 번호 (default: -1)", defaultValue = "-1", example =
+        // "-1")
         // private int rowNo = -1;
 
         @Schema(description = "페이지 번호 (default: 1)", defaultValue = "1", example = "1")
@@ -89,12 +91,16 @@ public class ExcelApiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SysMetadata {
+        @JsonIgnore
         private String backColumn;
         private String name;
         private String description;
         private boolean required;
         private String frontColumn;
         private Integer excelColIndex;
+        private String dataType;
+        private String regex;
+
     }
 
     @Getter
