@@ -1,3 +1,17 @@
+## 완료 작업 및 설계 변경 (2026-06-21)
+
+### 1. 하드코딩된 Enum(ExcelTemplateType) 리팩토링 (JSON 설정 파일 분리 방식 적용)
+- **설정 파일 도입:** [excel-templates.json](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/resources/excel-templates.json) 파일을 신설하여 기존 Enum 내부의 메타데이터 하드코딩을 제거하고 선언적으로 관리.
+- **클래스 전환:** [ExcelTemplateType.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/constant/ExcelTemplateType.java)를 `enum`에서 일반 `class`로 변경하고, 클래스 초기화(static block) 시 `excel-templates.json` 리소스를 Jackson `ObjectMapper`로 동적 파싱하여 메모리에 캐싱하도록 구현.
+- **기존 호환성 유지:** 기존에 사용되던 `values()` 및 `getMetadataByFileName(fileName)` API의 리턴 형태를 그대로 보존함으로써, [ExcelController.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/controller/ExcelController.java)와 [ExcelService.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/service/ExcelService.java)를 전혀 수정하지 않고 호환되도록 처리.
+
+### 2. 식별용 숫자 필드 타입 및 프론트 매칭 유효성 검증 정비
+- **타입 원상 복구 (`number` 타입 적용):** 연락처(`phone`), 사업자번호(`companyNumber`/`companyN`), 계좌번호(`account`) 필드의 데이터 타입을 백엔드 JSON 설정 내에서 최종 `"number"`로 동기화하였습니다.
+- **비즈니스적 사유:** 해당 필드들을 문자열(`string`)로 바꿀 시, 타입 호환성(string-to-string)으로 인해 프론트엔드의 드래그 앤 드롭 컬럼 매칭 화면에서 '사람 이름(string)' 등의 무관한 데이터가 '연락처(string)' 컬럼으로 오매칭되는 심각한 오류가 우려되었습니다.
+- **프론트엔드 검증 복구:** 프론트엔드 [DataGrid.tsx](file:///home/gahz/cp7/sa_cp7-front/apps/admin/app/test/excel-upload/DataGrid.tsx)의 매칭 차단 로직(`sysType !== excType`)을 엄격한 타입 매칭 모드로 복원하여 오매칭을 원천 차단하고, 추가했던 임시 정규식 검증은 모두 롤백하였습니다.
+- **결론:** 타입 구분이 확실한 `number` 형태를 유지함으로써, 프론트엔드 매칭 화면의 오매칭 오류 방지 사용성을 최우선으로 확보하였습니다.
+
+
 ## 완료 작업 및 설계 변경 (2026-06-17)
 
 ### 1. 모델 단순화 및 가독성 개선

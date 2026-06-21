@@ -1,0 +1,263 @@
+[
+  {
+    "templateType": "SIMPLE",
+    "fileNames": [
+      "근로자_간편서식.xlsx",
+      "자재_간편서식.xlsx",
+      "장비_간편서식.xlsx"
+    ],
+    "metadata": [
+      {
+        "backColumn": "companyName",
+        "name": "사업자명",
+        "description": "회사 이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "companyNumber",
+        "name": "사업자번호",
+        "description": "회사 등록번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:\\\\d{3}-\\\\d{2}-\\\\d{5}|\\\\d{10})$"
+      },
+      {
+        "backColumn": "phone",
+        "name": "연락처",
+        "description": "휴대폰 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:0[1-9]\\\\d{0,2}-\\\\d{3,4}-\\\\d{4}|0[1-9]\\\\d{7,9})$"
+      },
+      {
+        "backColumn": "amount",
+        "name": "청구액",
+        "description": "청구 액수",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "number",
+        "regex": null
+      },
+      {
+        "backColumn": "account",
+        "name": "계좌번호",
+        "description": "계좌 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^[0-9\\\\-]+$"
+      }
+    ]
+  },
+  {
+    "templateType": "SIMPLE2",
+    "fileNames": ["자재_간편서식_2열2단.xlsx", "근로자_간편서식_2열2단.xlsx"],
+    "metadata": [
+      {
+        "backColumn": "companyName",
+        "name": "사업자명",
+        "description": "회사 이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "companyNumber",
+        "name": "사업자번호",
+        "description": "회사 등록번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:\\\\d{3}-\\\\d{2}-\\\\d{5}|\\\\d{10})$"
+      },
+      {
+        "backColumn": "phone",
+        "name": "연락처",
+        "description": "휴대폰 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:0[1-9]\\\\d{0,2}-\\\\d{3,4}-\\\\d{4}|0[1-9]\\\\d{7,9})$"
+      },
+      {
+        "backColumn": "amount",
+        "name": "청구액",
+        "description": "청구 액수",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "number",
+        "regex": null
+      },
+      {
+        "backColumn": "bank",
+        "name": "은행명",
+        "description": "은행 이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "account",
+        "name": "계좌번호",
+        "description": "계좌 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^[0-9\\\\-]+$"
+      }
+    ]
+  },
+  {
+    "templateType": "ETC1",
+    "fileNames": ["자재_출력일보.xlsx"],
+    "metadata": [
+      {
+        "backColumn": "companyName",
+        "name": "업체명",
+        "description": "회사 이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "companyNumber",
+        "name": "사업자등록번호",
+        "description": "회사 등록번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:\\\\d{3}-\\\\d{2}-\\\\d{5}|\\\\d{10})$"
+      },
+      {
+        "backColumn": "memberName",
+        "name": "대표자명",
+        "description": "대표자이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "itemName",
+        "name": "품목명",
+        "description": "품목 이름",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "phone",
+        "name": "연락처",
+        "description": "휴대폰 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:0[1-9]\\\\d{0,2}-\\\\d{3,4}-\\\\d{4}|0[1-9]\\\\d{7,9})$"
+      },
+      {
+        "backColumn": "startDay",
+        "name": "계약일",
+        "description": "계약 일자",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "date",
+        "regex": null
+      },
+      {
+        "backColumn": "address",
+        "name": "현장 주소",
+        "description": "현장 주소",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      }
+    ]
+  },
+  {
+    "templateType": "ETC2",
+    "fileNames": [
+      "근로자_간편서식_2열1단.xlsx",
+      "근로자_간편서식_2열1단2.xlsx"
+    ],
+    "metadata": [
+      {
+        "backColumn": "companyN",
+        "name": "사업자번호",
+        "description": "회사 등록번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:\\\\d{3}-\\\\d{2}-\\\\d{5}|\\\\d{10})$"
+      },
+      {
+        "backColumn": "memberName",
+        "name": "사업자명",
+        "description": "사업자명",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": null
+      },
+      {
+        "backColumn": "amount",
+        "name": "청구액수",
+        "description": "청구 액수",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "number",
+        "regex": null
+      },
+      {
+        "backColumn": "phone",
+        "name": "연락처",
+        "description": "휴대폰 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^(?:0[1-9]\\\\d{0,2}-\\\\d{3,4}-\\\\d{4}|0[1-9]\\\\d{7,9})$"
+      },
+      {
+        "backColumn": "account",
+        "name": "계좌번호",
+        "description": "계좌 번호",
+        "required": true,
+        "frontColumn": null,
+        "excelColIndex": null,
+        "dataType": "string",
+        "regex": "^[0-9\\\\-]+$"
+      }
+    ]
+  }
+]

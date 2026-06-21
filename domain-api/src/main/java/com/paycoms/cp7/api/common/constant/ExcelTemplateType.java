@@ -1,75 +1,53 @@
 package com.paycoms.cp7.api.common.constant;
 
 import com.paycoms.cp7.api.common.dto.ExcelApiDto.SysMetadata;
-import java.util.Arrays;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.InputStream;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Collections;
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.paycoms.cp7.api.common.dto.ExcelApiDto;
-//같은 컬럼을 사용하는 엑셀파일이 여러개 있을 수 있기 때문에, 엑셀파일명과 매핑되는 컬럼정보를 enum으로 관리
-//추후에 타입과 정규식을 넣어 놓고 검증시 사용할 수 있게 해보자.
-@JsonFormat(shape = JsonFormat.Shape.OBJECT)
-public enum ExcelTemplateType {
-    SIMPLE(Arrays.asList("근로자_간편서식.xlsx", "자재_간편서식.xlsx",  "장비_간편서식.xlsx"), Arrays.asList(
-            new ExcelApiDto.SysMetadata("companyName", "사업자명", "회사 이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("companyNumber", "사업자번호", "회사 등록번호", true, null, null,"string",null),
-            // new ExcelApiDto.SysMetadata("memberName", "회원이름", "대표자이름", true, null, null),
-            // new ExcelApiDto.SysMetadata("itemName", "품목명", "품목 이름", true, null, null),
-            new ExcelApiDto.SysMetadata("phone", "연락처", "휴대폰 번호", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("amount", "청구액", "청구 액수", true, null, null,"number",null  ),
-            // new ExcelApiDto.SysMetadata("bank", "은행명", "은행 이름", true, null, null),
-            new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null,"string",null))),
-    SIMPLE2(Arrays.asList("자재_간편서식_2열2단.xlsx"), Arrays.asList(
-            new ExcelApiDto.SysMetadata("companyName", "사업자명", "회사 이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("companyNumber", "사업자번호", "회사 등록번호", true, null, null,"string",null),
-            // new ExcelApiDto.SysMetadata("memberName", "회원이름", "대표자이름", true, null, null),
-            // new ExcelApiDto.SysMetadata("itemName", "품목명", "품목 이름", true, null, null),
-            new ExcelApiDto.SysMetadata("phone", "연락처", "휴대폰 번호", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("amount", "청구액", "청구 액수", true, null, null,"number",null),
-            new ExcelApiDto.SysMetadata("bank", "은행명", "은행 이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null,"string",null))),
-    ETC1(Arrays.asList("자재_출력일보.xlsx"), Arrays.asList(
-            new ExcelApiDto.SysMetadata("companyName", "업체명", "회사 이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("companyNumber", "사업자등록번호", "회사 등록번호", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("memberName", "대표자명", "대표자이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("itemName", "품목명", "품목 이름", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("phone", "연락처", "휴대폰 번호", true, null, null,"string",null),
-            new ExcelApiDto.SysMetadata("startDay", "계약일", "계약 일자", true, null, null,"date",null),
-            new ExcelApiDto.SysMetadata("address", "현장 주소", "현장 주소", true, null, null,"string",null))), // new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null)
-            // new ExcelApiDto.SysMetadata("areaName", "현장명", "현장 이름", true, null, null),
-    ETC2(Arrays.asList("근로자_간편서식_2열1단.xlsx","근로자_간편서식_2열1단2.xlsx"), Arrays.asList(// new ExcelApiDto.SysMetadata("companyName", "사업자명", "회사이름", true, null, null),
-    new ExcelApiDto.SysMetadata("companyN", "사업자번호", "회사 등록번호", true, null, null,"string",null),
-    new ExcelApiDto.SysMetadata("memberName", "사업자명", "사업자명", true, null, null,"string",null),
-    new ExcelApiDto.SysMetadata("amount", "청구액수", "청구 액수", true, null, null,"number",null),
-    new ExcelApiDto.SysMetadata("phone", "연락처", "휴대폰 번호", true, null, null,"string",null),
-    new ExcelApiDto.SysMetadata("account", "계좌번호", "계좌 번호", true, null, null,"string",null)
-    // new ExcelApiDto.SysMetadata("itemName", "품목명", "품목 이름", true, null, null),
-    // new ExcelApiDto.SysMetadata("bank", "은행명", "은행 이름", true, null, null),
-    ));
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-    private final List<String> fileNames;
-    private final List<ExcelApiDto.SysMetadata> metadata;
+@Slf4j
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ExcelTemplateType {
+    private String templateType;
+    private List<String> fileNames;
+    private List<SysMetadata> metadata;
 
-    ExcelTemplateType(List<String> fileNames, List<ExcelApiDto.SysMetadata> metadata) {
-        this.fileNames = fileNames;
-        this.metadata = metadata;
+    private static final List<ExcelTemplateType> TEMPLATES = new ArrayList<>();
+
+    static {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try (InputStream is = ExcelTemplateType.class.getResourceAsStream("/excel-templates.json")) {
+                if (is != null) {
+                    List<ExcelTemplateType> list = objectMapper.readValue(is, new TypeReference<List<ExcelTemplateType>>() {});
+                    TEMPLATES.addAll(list);
+                } else {
+                    log.error("excel-templates.json not found in resources!");
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to load excel-templates.json", e);
+        }
     }
 
-    public List<String> getFileNames() {
-        return fileNames;
+    public static ExcelTemplateType[] values() {
+        return TEMPLATES.toArray(new ExcelTemplateType[0]);
     }
 
-    public List<ExcelApiDto.SysMetadata> getMetadata() {
-        return metadata;
-    }
-
-    public String getTemplateType() {
-        return this.name();
-    }
-
-    public static List<ExcelApiDto.SysMetadata> getMetadataByFileName(String fileName) {
-        for (ExcelTemplateType type : values()) {
-            if (type.fileNames.contains(fileName)) {
+    public static List<SysMetadata> getMetadataByFileName(String fileName) {
+        for (ExcelTemplateType type : TEMPLATES) {
+            if (type.fileNames != null && type.fileNames.contains(fileName)) {
                 return type.metadata;
             }
         }
