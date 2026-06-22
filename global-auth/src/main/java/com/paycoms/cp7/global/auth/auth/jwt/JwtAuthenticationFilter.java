@@ -18,10 +18,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RedisConfig redisConfig;
@@ -29,6 +28,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final RequestMappingHandlerMapping requestMappingHandlerMapping;
     private final ObjectMapper objectMapper;
     private final MessageUtils messageUtils;
+
+    public JwtAuthenticationFilter(
+            RedisConfig redisConfig,
+            JwtProvider jwtProvider,
+            @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping requestMappingHandlerMapping,
+            ObjectMapper objectMapper,
+            MessageUtils messageUtils) {
+        this.redisConfig = redisConfig;
+        this.jwtProvider = jwtProvider;
+        this.requestMappingHandlerMapping = requestMappingHandlerMapping;
+        this.objectMapper = objectMapper;
+        this.messageUtils = messageUtils;
+    }
 
     @SuppressWarnings("null")
     @Override

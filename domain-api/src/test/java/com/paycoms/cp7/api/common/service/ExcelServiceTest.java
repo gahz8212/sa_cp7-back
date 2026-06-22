@@ -57,7 +57,6 @@ class ExcelServiceTest {
 
         String createKeyString = "testKey";
         int sheetNo = 0;
-        int rowNo = 0; // Header on the first row
 
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
@@ -87,7 +86,7 @@ class ExcelServiceTest {
         );
 
         // When
-        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo, rowNo));
+        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo));
 
         // Then
         verify(excelMapper, times(2)).insertExcel(any(Excel.class)); // Expect 2 inserts for 2 data rows
@@ -107,7 +106,6 @@ class ExcelServiceTest {
         // Given
         String createKeyString = "testKey";
         int sheetNo = 0;
-        int rowNo = 0;
 
         Workbook workbook = new XSSFWorkbook();
         workbook.createSheet("EmptySheet");
@@ -121,7 +119,7 @@ class ExcelServiceTest {
         );
 
         // When
-        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo, rowNo));
+        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo));
 
         // Then
         verify(excelMapper, never()).insertExcel(any(Excel.class));
@@ -137,7 +135,6 @@ class ExcelServiceTest {
 
         String createKeyString = "testKey";
         int sheetNo = 0;
-        int rowNo = 0;
         int numberOfRecords = 1001; // More than one batch (batch size 1000 in service)
 
         Workbook workbook = new XSSFWorkbook();
@@ -165,7 +162,7 @@ class ExcelServiceTest {
         );
 
         // When
-        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo, rowNo));
+        assertDoesNotThrow(() -> excelService.uploadExcel(createKeyString, mockFile, sheetNo));
 
         // Then
         // Expect at least two flushes and commits for 1001 records (1000 + 1)
