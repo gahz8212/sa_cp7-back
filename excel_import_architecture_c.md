@@ -40,18 +40,20 @@ sequenceDiagram
     Note over FE: 브라우저 라이브러리(SheetJS 등)로<br/>상위 5행만 로컬 파싱 및 표출
     User->>FE: 4. 화면에서 가상 데이터와 DB 컬럼 매칭 완료 및 중복 정책 선택
 
-    Note over FE, BE: [3단계: 최종 전송 및 일괄 검증/저장]
-    FE->>BE: 5. 엑셀 파일(전체) + 매핑 규칙(columnIndex) + 중복 정책 전송 (POST)
+    Note over FE, BE: [3단계: 최종 전송 및 일괄 검증/저장 (화면 직접 수정 대응)]
+    FE->>BE: 5. 엑셀 파일(전체) + 매핑 규칙 + 중복 정책 + modifiedRows(수정 내역, 최초엔 빈 값) 전송 (POST)
     
-    Note over BE: [백엔드 검증 실행]
-    Note over BE: ① 1차 검증: 필수값, 타입, 정규식 검사 (메모리 단)
-    Note over BE: ② 2차 검증: DB 기존 데이터와 LEFT OUTER JOIN을 통한 중복/정합성 검사
+    Note over BE: [백엔드 데이터 병합 및 검증 실행]
+    Note over BE: ① 데이터 병합: 파일 파싱 중 modifiedRows가 존재하면 해당 값으로 Overwrite<br/>② 1차 검증: 필수값, 타입, 정규식 검사 (메모리 단)<br/>③ 2차 검증: DB 기존 데이터와 LEFT OUTER JOIN을 통한 중복/정합성 검사
     
-    alt 검증 실패 (FAIL 정책 시 중복 발견 등)
-        BE->>FE: 6a. Fail-safe 전체 에러 목록 반환 (저장 취소)
+    alt 검증 실패 (오류 발견 시)
+        BE->>FE: 6a. Fail-safe 전체 에러 목록 반환 (저장 반려)
+        Note over FE: 오류 셀 빨간색 표시 및 사용자 화면 그리드에서 직접 더블클릭 수정
+        User->>FE: 6b. 오류 셀 수정 완료 (modifiedRows 업데이트)
+        Note over FE: 수정 완료 후 5번 단계로 재전송 (modifiedRows 포함)
     else 검증 통과 (또는 UPDATE/SKIP 정책 처리)
-        BE->>DB: 6b. 실제 서비스 마스터 테이블에 일괄 저장 (Batch Insert)
-        BE->>FE: 7. 성공 결과 반환
+        BE->>DB: 7a. 실제 서비스 마스터 테이블에 일괄 저장 (Batch Insert)
+        BE->>FE: 7b. 저장 완료 및 성공 결과 반환
     end
 ```
 
@@ -79,16 +81,55 @@ sequenceDiagram
 2. **인덱스 기반 매핑:** 사용자가 매칭을 완료하면 백엔드로 텍스트 이름이 아닌 **`columnIndex` (물리적 열 순서: 0, 1, 2...)**를 전송합니다.
 3. **효과:** 컬럼명 유실이나 파일 내 컬럼명 중복이 발생하더라도 `columnIndex`를 고유 식별자로 취급하여 데이터 왜곡 없이 안전하게 파싱할 수 있습니다.
 
-### B. 보안성 확보 (물리 DB 스키마 격리)
+### C. 보안성 확보 (물리 DB 스키마 격리)
 * 프론트엔드로 전달되는 메타데이터 내 컬럼명은 실제 물리 DB 컬럼명(예: `TB_M_EMP.CO_REG_NO`)이 아닌, 백엔드가 API 레벨에서 추상화한 **DTO 필드명(가상 Key, 예: `companyNumber`)**입니다.
 * 최종 전송 시에도 프론트엔드는 가상 Key와 `columnIndex`만 보내며, 실제 DB로 SQL을 보낼 때만 백엔드 내부 Mapper에서 물리 스키마 명칭으로 맵핑 변환해 수행하므로 웹상에 내부 DB 구조가 일절 은닉됩니다.
 
-### C. 1차 & 2차 검증 레이어 분리
+### D. 1차 & 2차 검증 레이어 분리
 백엔드 검증은 서버 자원 효율 극대화를 위해 **2단계**로 나누어 실행합니다.
 
 1. **1차 검증: 포맷 및 타입 검증 (Syntactic Validation)**
    - **대상:** 필수 항목 누락, 데이터 타입 불일치, 정규식 포맷 어긋남 등.
    - **수행:** 파일 스트림을 읽는 도중 메모리 단에서 즉시 수행하며, 위반 사항은 `List<ValidationError>`에 일괄 수집합니다.
+   - **타입별 검증 함수 정의:**
+     - **`string` (문자열):** 모든 문자 형태를 허용합니다. (별도 정규식이 존재할 경우 패턴 매칭만 검증)
+     - **`number` (숫자형):** 정수, 실수, 음수 및 천 단위 구분자(쉼표 `,`)를 포함한 포맷을 허용하며, 최종 변환 가능 여부를 검증합니다.
+       ```java
+       public static boolean isValidNumber(String value) {
+           if (value == null || value.trim().isEmpty()) return true;
+           String cleanValue = value.replace(",", "").trim();
+           return cleanValue.matches("^-?\\d+(\\.\\d+)?$");
+       }
+       ```
+     - **`date` (날짜형):** `yyyy-MM-dd`, `yyyyMMdd`, `yyyy/MM/dd` 포맷을 허용하고 실제 달력상 유효한 날짜인지 검증합니다.
+       ```java
+       private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
+           DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+           DateTimeFormatter.ofPattern("yyyyMMdd"),
+           DateTimeFormatter.ofPattern("yyyy/MM/dd")
+       );
+       public static boolean isValidDate(String value) {
+           if (value == null || value.trim().isEmpty()) return true;
+           String cleanValue = value.trim();
+           for (DateTimeFormatter formatter : DATE_FORMATTERS) {
+               try {
+                   LocalDate.parse(cleanValue, formatter);
+                   return true;
+               } catch (DateTimeParseException e) {
+                   // 다음 포맷 시도
+               }
+           }
+           return false;
+       }
+       ```
+     - **`boolean` (논리형):** 대소문자 무관 `"true"`, `"false"`, `"y"`, `"n"`, `"1"`, `"0"` 값을 허용합니다.
+       ```java
+       public static boolean isValidBoolean(String value) {
+           if (value == null || value.trim().isEmpty()) return true;
+           String cleanValue = value.trim().toLowerCase();
+           return List.of("true", "false", "y", "n", "1", "0").contains(cleanValue);
+       }
+       ```
 2. **2차 검증: DB 정합성 및 중복 검증 (Semantic Validation)**
    - **대상:** 기존 DB 테이블 데이터와의 중복 여부, 코드값 유효성(참조 키 매칭) 등.
    - **성능 최적화 (Outer 쿼리):** 1차 검증을 통과한 데이터를 기준으로 타겟 테이블을 **`LEFT OUTER JOIN`** 하는 단 한 번의 조인 쿼리를 실행해 유효하지 않은 데이터를 일괄 식별합니다.
@@ -104,20 +145,13 @@ sequenceDiagram
        AND d.dept_code IS NULL;
      ```
 
-### D. 사용자 선택형 중복 정책 (Duplicate Policy)
+### E. 사용자 선택형 중복 정책 (Duplicate Policy)
 최종 저장 API 전송 시 사용자가 결정한 `duplicatePolicy` 옵션을 동반 수신하여 분기 처리합니다.
 * **`FAIL`:** DB 중복 데이터 1건이라도 발견 시 검증 실패로 규정하여 에러 목록을 반환하고 트랜잭션을 롤백합니다.
 * **`UPDATE`:** 중복된 키를 가진 행은 기존 DB 레코드를 새로운 엑셀 내용으로 업데이트(Upsert/Overwrite)합니다.
 * **`SKIP`:** 중복 데이터는 저장 대상에서 제외하고, 중복되지 않은 신규 데이터만 필터링하여 일괄 `INSERT` 합니다.
 
----
-
-## 4. API 및 DTO 스펙 가이드라인
-
-### 1) 템플릿 메타데이터 조회 API
-* **Endpoint:** `GET /common/excel-templates/{templateType}`
-* **Response Body DTO (`SysMetadata`):**
-### E. 화면 직접 수정(그리드 수정) 데이터 반영 매커니즘
+### F. 화면 직접 수정(그리드 수정) 데이터 반영 매커니즘
 사용자가 원본 엑셀 파일을 다시 고쳐 업로드하지 않고, 화면 그리드에서 틀린 데이터를 즉시 수정하여 재저장할 수 있도록 백엔드는 수신된 수정 사항(`modifiedRows`)을 병합하여 검증 및 저장합니다.
 
 ```

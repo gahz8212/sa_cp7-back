@@ -212,6 +212,8 @@ flowchart TD
    - 백엔드는 매핑된 `excelColIndex`와 데이터 시작 인덱스(`dataStartRowIndex`)를 활용해 인덱스 기반으로 단순하고 유연하게 파싱합니다.
 3. **화면(그리드) 직접 수정 반영:**
    - 저장이 반려(Fail-safe 에러 응답)되면 사용자는 화면 상에서 값을 더블클릭하여 바로 수정합니다.
-   - 재저장 시 수정 내역(`modifiedRows`)을 파일과 함께 전송하며, 백엔드는 파싱 시 `rowIndex`가 일치하는 행의 데이터를 엑셀 원본 값 대신 수정된 값으로 교체(Merge)하여 검증 및 저장을 수행합니다.
+   - 재저장 시 수정 내역(`modifiedRows`)을 파일과 함께 전송하며, 백엔드는 파싱 시 `rowIndex`가 일치하는 행의 데이터를 엑셀 원본 값 대신 수정된 값으로 교체(Merge)하여 검증 및 저장을 수행합니다. (시퀀스 다이어그램 반영 완료)
 4. **보안 강화 (Aliasing):**
    - 백엔드는 실제 물리 DB 컬럼명을 노출하지 않고, API DTO 필드명(Logical Key, 예: `companyNumber`)으로 메타데이터를 추상화해 프론트와 연동합니다.
+5. **1차 검증용 타입별 유효성 검증 함수:**
+   - `string`, `number`(`isValidNumber`), `date`(`isValidDate`), `boolean`(`isValidBoolean`)에 대한 백엔드 전처리기 함수 명세를 반영하였습니다. (2026-06-23 추가)
