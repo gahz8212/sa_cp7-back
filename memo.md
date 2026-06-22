@@ -1,183 +1,43 @@
-## 완료 작업 및 설계 변경 (2026-06-21)
+# 엑셀 업로드 유효성 검증 및 컬럼 매핑 아키텍처 제안
 
-### 1. 하드코딩된 Enum(ExcelTemplateType) 리팩토링 (JSON 설정 파일 분리 방식 적용)
-- **설정 파일 도입:** [excel-templates.json](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/resources/excel-templates.json) 파일을 신설하여 기존 Enum 내부의 메타데이터 하드코딩을 제거하고 선언적으로 관리.
-- **클래스 전환:** [ExcelTemplateType.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/constant/ExcelTemplateType.java)를 `enum`에서 일반 `class`로 변경하고, 클래스 초기화(static block) 시 `excel-templates.json` 리소스를 Jackson `ObjectMapper`로 동적 파싱하여 메모리에 캐싱하도록 구현.
-- **기존 호환성 유지:** 기존에 사용되던 `values()` 및 `getMetadataByFileName(fileName)` API의 리턴 형태를 그대로 보존함으로써, [ExcelController.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/controller/ExcelController.java)와 [ExcelService.java](file:///home/gahz/cp7/sa_cp7-back/domain-api/src/main/java/com/paycoms/cp7/api/common/service/ExcelService.java)를 전혀 수정하지 않고 호환되도록 처리.
+## 1. 기존 프로세스 문제점 분석
+*   **보안 위험:** 프론트엔드가 최종 가공된 데이터를 백엔드로 전송 시 데이터 위변조 노출 위험 존재.
+*   **이중 처리 비효율:** 엑셀 전체 데이터를 프론트가 2번 전송하게 되어 파싱 및 네트워크 비용 중복 발생.
+*   **피드백 부재:** 유효성 오류(누락, 중복, 정규식 등)가 최종 저장 시점에만 인지됨.
 
-### 2. 식별용 숫자 필드 타입 및 프론트 매칭 유효성 검증 정비
-- **타입 원상 복구 (`number` 타입 적용):** 연락처(`phone`), 사업자번호(`companyNumber`/`companyN`), 계좌번호(`account`) 필드의 데이터 타입을 백엔드 JSON 설정 내에서 최종 `"number"`로 동기화하였습니다.
-- **비즈니스적 사유:** 해당 필드들을 문자열(`string`)로 바꿀 시, 타입 호환성(string-to-string)으로 인해 프론트엔드의 드래그 앤 드롭 컬럼 매칭 화면에서 '사람 이름(string)' 등의 무관한 데이터가 '연락처(string)' 컬럼으로 오매칭되는 심각한 오류가 우려되었습니다.
-- **프론트엔드 검증 복구:** 프론트엔드 [DataGrid.tsx](file:///home/gahz/cp7/sa_cp7-front/apps/admin/app/test/excel-upload/DataGrid.tsx)의 매칭 차단 로직(`sysType !== excType`)을 엄격한 타입 매칭 모드로 복원하여 오매칭을 원천 차단하고, 추가했던 임시 정규식 검증은 모두 롤백하였습니다.
-- **결론:** 타입 구분이 확실한 `number` 형태를 유지함으로써, 프론트엔드 매칭 화면의 오매칭 오류 방지 사용성을 최우선으로 확보하였습니다.
+---
 
+## 2. 개선 아키텍처 모델
 
-## 완료 작업 및 설계 변경 (2026-06-17)
+### 대안 A. 매핑 정보 기반 백엔드 일괄 처리 (추천)
+> 프론트는 가공 데이터를 보내지 않고, **매핑 규칙**과 **파일**만 전달하여 백엔드에서 원본 기준으로 일괄 처리하는 방식
 
-### 1. 모델 단순화 및 가독성 개선
-- **필드 제거 및 정리:** `Excel` 모델 및 관련 로직에서 `rowType` 필드를 제거함. (API 응답 가독성 향상 및 데이터 구조 단순화)
-- **DB 정렬 및 매핑 보정:** `ExcelMapper.xml`의 `resultMap`에서 주석 처리되었던 `fileKey`를 복구하여 데이터 조회 무결성을 확보함.
+```
+[프론트엔드]                        [백엔드]
+     |                               |
+     | ----- 1. 엑셀 파일 업로드 ----> |
+     | <---- 2. 헤더 및 샘플 데이터 --- |
+     |                               |
+ (컬럼 매핑)                          |
+     |                               |
+     | -- 3. 파일 + 매핑 규칙 전송 --> | (백엔드 파싱 및 검증 수행)
+     |                               |   - 누락, 중복, 정규식 검사
+     |                               |
+     | <--- 4. 검증 결과 피드백 ------ | (오류 발생 시 에러 상세 리스트 반환)
+     |                               | (정상 시 실제 DB 저장)
+```
 
-### 2. MyBatis 및 DB 연동 이슈 해결
-- **`targetSysType` 완전 폐기:** DB 스키마와 모델에 존재하지 않는 `targetSysType` 참조를 `ExcelTemplateMapper.xml`에서 완전히 삭제하여 `ReflectionException` 해결.
-- **스키마 동기화:** 매퍼의 컬럼명을 최신 DB 명세(`header_structure` -> `structures`)에 맞춰 수정 완료.
+### 대안 B. 임시 테이블(Stage Table) 단계 도입 (대용량/편집 기능 요구 시 추천)
+> 엑셀 데이터를 임시 테이블에 선적재 후, 검증 결과를 화면에 보여주며 사용자가 수정할 수 있게 유도하는 방식
 
-### 3. 엑셀 업로드 파싱 로직 최적화 (Early Exit)
-- **가로/세로 범위 자동 감지:** 엑셀의 제목줄(Header) 칸 개수를 기준으로 데이터를 읽고, 물리적 끝이 아닌 실제 데이터 유무를 판단하도록 개선.
-- **연속 빈 행 처리:** 10개 이상의 연속된 빈 행(`dataJson` 값이 모두 `''`) 발견 시, 해당 시점의 첫 번째 빈 행까지만 저장하고 파싱을 즉시 중단하는 로직 도입. (불필요한 가비지 데이터 생성 방지)
+1.  **임시 업로드:** 엑셀 업로드 시 임시 저장소(임시 테이블/Redis)에 적재 및 임시 ID 발급.
+2.  **검증 요청:** 매핑 정보가 수신되면 백엔드는 임시 데이터를 대상으로 유효성 검사 수행.
+3.  **검증 결과 피드백:** 오류 목록(Row 번호, 컬럼명, 실패 사유)을 화면에 표시.
+4.  **수정 및 최종 저장 (Commit):** 화면에서 예외/수정 처리 완료 후 최종 승인 시 실제 테이블로 이관.
 
-### 4. 기타 개선 사항
-- **메서드 시그니처 정리:** 프론트엔드에서 사용하지 않는 `rowNo` 파라미터를 `ExcelService.uploadExcel` 및 관련 컨트롤러에서 제거함.
-- **필드명 일치화:** 프론트엔드와 백엔드 간 DTO 필드명 불일치(`templateData` 등)를 조사하여 안정적인 데이터 바인딩 기반 마련.
+---
 
-## 향후 과제 및 다국어/도메인 용어 최적화 전략
-
-### 1. 다국어 지원 (i18next & Spring MessageSource)
-- **프론트엔드:** `i18next`를 사용하여 UI 레이블 및 고정 메시지 처리.
-- **백엔드:** `Accept-Language` 헤더 기반 `LocaleResolver` 설정 및 `messages.properties`를 통한 에러 코드별 메시지 관리.
-- **전략:** 백엔드는 에러 코드(`VALI_001`)를 반환하고, 실제 번역은 프론트에서 전담하는 방식(방식 B)을 우선 고려하여 결합도 최소화.
-
-### 2. 업종별 도메인 용어 치환 (Business Terminology)
-- **목적:** 동일한 DB 필드(`memberName`)라도 업종(건설, 물류 등)에 따라 엑셀 헤더명을 동적으로 변경 (예: "근로자명" vs "운송기사명").
-- **구현 전략:**
-    - `ExcelTemplateType` 하드코딩을 탈피하고, **[업종 + 컬럼키]** 조합의 용어 매핑 테이블(Term Dictionary) 구축.
-    - `UserInfoDto` 또는 요청 컨텍스트에 `businessType`을 포함하여 서버가 적절한 용어 세트를 선택하도록 설계.
-    - 엑셀 업로드/다운로드 시 `SysMetadata`를 조회할 때 해당 업종 사전을 거쳐 `display_name`을 동적으로 결정.
-
-## 완료 작업 및 설계 변경 (2026-06-16)
-
-### 1. 다중 헤더 마킹 로직 보정 및 연동
-- **헤더 영역 명시적 지정:** `UploadRequest`의 `rowNo` 기본값을 `-1`로 변경하여, 자동 탐색(최초 업로드)과 사용자 명시 선택(수정 시)을 구분함.
-- **HEADER 마킹 로직:** `rowNo`가 0 이상일 경우, 0번 행부터 `rowNo` 행까지 모든 데이터를 `rowType: 'HEADER'`로 마킹하여 다중 헤더 구조를 백엔드 저장 단계에서 확정함.
-- **프론트엔드 연동:** 최초 업로드 시 `rowNo: -1`을 전송하여 백엔드의 자동 헤더 감지 로직이 동작하도록 수정 완료.
-
-### 2. 모델 단순화 및 리팩토링 진행 (진행 중)
-- **필드 제거 결정:** `Excel` 모델 클래스에서 `rowType`과 `fileKey` 필드를 제거하기로 결정함. (데이터 전송 및 저장 구조 단순화 목적)
-- **빌드 에러 및 조치:** 필드 주석 처리 후 `ExcelService.java`에서 해당 필드의 Setter를 호출하는 부분에서 `symbol not found` 에러 발생 확인.
-- **직접 수정 모드 전환:** 사용자가 직접 코드를 수정하며 학습하기 위해, 에이전트는 가이드 및 분석 정보만 제공하는 조언자(Advisory) 모드로 운영 중.
-
-## 완료 작업 (2026-06-13)
-
-### 1. 엑셀 매핑 템플릿 관리 전략 전면 개편
-- **B2B 대응 아키텍처 수립:** `userMapping`(개인별) 개념을 폐기하고, **고객사(Company/Tenant) 단위** 매핑 전략을 수립함. (현재 `userId`를 회사 식별자로 활용)
-- **추론 로직 완전 제거 (`sysType` 폐기):** 파일 내용을 보고 `EMPLOYEE`, `PAYROLL` 등으로 유추하던 불확실한 로직을 삭제하고, 오직 **정확한 파일명(Exact Filename)**과 **회사 ID(userId)**의 조합으로만 템플릿을 식별하도록 변경함.
-- **데이터 조회 조건 최적화:** `selectTemplateByNameAndUser` 쿼리를 신설하여, "우리 회사가 올린 파일 중 이름이 정확히 일치하는 가장 최신 세팅"을 불러오도록 구현.
-
-### 2. 기술적 결함 해결 (Bug Fix)
-- **이중 직렬화(Double Serialization) 해결:** `ExcelService`에서 이미 JSON 문자열로 변환한 데이터를 MyBatis `JsonTypeHandler`가 다시 한 번 이스케이프하던 문제를 해결함. (XML 매퍼에서 `typeHandler` 제거)
-- **다중 헤더(Multi-tier Header) 지원:** 사용자가 프론트엔드에서 선택한 헤더 종료 행(`rowNo`)을 기준으로, 그 이전의 모든 행을 `rowType: 'HEADER'`로 마킹하도록 로직을 보정함. (0번부터 선택 행까지 모두 헤더로 인식)
-- **기본 템플릿(Fallback) 조건 엄격화:** DB에 저장된 데이터가 없을 경우 반환하는 하드코딩된 기본 컬럼 리스트도 "포함(contains)"이 아닌 "정확히 일치(equals)"하는 파일명일 때만 동작하도록 수정하여 데이터 무결성 확보.
-
-### 3. 향후 과제
-- **필드 명칭 통일:** `근로자_간편서식`과 `장비_간편서식` 등 유사 서식 간의 `backColumn` 키값(예: `memberName` vs `representativeName`) 및 한글 라벨(예: `청구액` vs `청구액수`)을 전수 조사하여 통일 작업 필요. (프론트엔드 체크 아이콘 활성화 조건 충족을 위함)
-- **DB 데이터 클렌징:** 이중 직렬화 문제로 잘못 저장된 기존 `excel_mapping_templates` 테이블 데이터 삭제 및 재등록 필요.
-
-### 4. 백엔드 코드 품질 및 구조 개선 (Refactoring)
-- **하드코딩 메타데이터 분리 (`ExcelTemplateType` Enum):** `ExcelService`에 직접 구현되어 있던 엑셀 서식별 메타데이터 정보를 `ExcelTemplateType` Enum 클래스로 분리하여 관리 편의성과 확장성을 높임.
-- **엑셀 데이터 추출 정확도 향상:** `DataFormatter`를 도입하여 날짜, 숫자, 통화 등 다양한 셀 타입에 대해 엑셀 화면에 보이는 그대로의 텍스트를 추출하도록 개선함.
-- **DTO 및 모델 정리:** `DownloadExcelRequest`의 필드명 오타(`fileds` -> `fields`)를 수정하고, `ExcelDto`의 레거시 주석 코드를 제거하여 가독성을 개선함.
-- **API 바인딩 최적화:** `analyze-excel-structure` API의 인자 전달 방식을 `@RequestBody`로 변경하여 JSON 페이로드 바인딩 이슈를 해결함.
-- **상세 분석 보고서 작성:** 백엔드 엑셀 시스템의 아키텍처와 로직을 분석한 `excel_backend_analysis.txt` 파일을 생성하여 기술 부채 및 향후 개선 방향을 정리함.
-
-## 엑셀 업로드 로직 개선 계획
-
-## 현황 (2026-06-04 수정)
-- 엑셀 업로드 시 데이터 유실 문제 해결 완료.
-- `.xls`와 `.xlsx` 파일 형식 모두 지원.
-- 밀도 기반 자동 헤더 탐색 로직 적용 (비어 있지 않은 셀이 가장 많은 행을 기준으로 함).
-- 제목 행을 포함한 전체 행을 DB에 저장하여 데이터 완전성 확보.
-
-## 완료 작업 (2026-06-04)
-1. `WorkbookFactory`를 도입하여 `.xls`, `.xlsx` 형식 통합 지원.
-2. `findMaxColCount` 메서드를 추가하여 자동 헤더 탐색 및 정렬.
-3. 엑셀의 0번 행부터 전체 데이터를 DB에 저장하도록 `uploadExcel` 로직 수정.
-4. `.xls` 파일(HTML 포맷 등) 업로드 시 발생하던 오류를 위한 라이브러리(`poi`) 추가 및 검증 로직 보강.
-
-## 완료 작업 (2026-06-06)
-1. `ExcelController`의 `@RequestBody` 임포트 오류 수정:
-   - Swagger용 `@io.swagger.v3.oas.annotations.parameters.RequestBody`가 임포트되어 Spring MVC에서 JSON 요청 바디를 정상적으로 역직렬화하지 못하던 문제 해결.
-   - `org.springframework.web.bind.annotation.RequestBody`로 변경하여 `UpdateExcelRequest` 데이터가 정상적으로 전달되도록 수정.
-   - 이를 통해 "수정된 데이터 내역이 비어있습니다." 검증 에러 해결.
-2. 엑셀 수정 데이터 업데이트 전략 결정:
-   - DB 직접 업데이트 vs 세션/캐시 업데이트 비교 분석.
-   - 실시간(Per-cell) 업데이트보다는 네트워크 효율과 UX를 고려하여 **버퍼링/일괄 동기화(Buffered/Batch Update)** 전략을 채택하기로 함.
-   - 화면에서 즉시 변경 사항을 보여주는 UX(프론트엔드 연산)와 데이터 안정성(서버 캐시/DB 동기화)을 분리하여 설계.
-3. 워크스페이스 간 기록 동기화 전략 수립:
-   - 저장소가 분리된(Front/Back) 환경에서 정보 공유를 위해 각 루트의 `memo.md`에 동일한 주요 결정 사항을 기록함.
-   - API 스펙 및 데이터 규약은 상호 참조하도록 관리.
-
-## 완료 작업 (2026-06-07)
-- 엑셀 업로드 후 조회 시 `size` 파라미터가 20으로 하드코딩되어 있던 문제 확인 (수정 예정).
-- 엑셀 수정 사항 저장 API (`/api/common/save-excel-changes`) 동작 분석:
-  - 컨트롤러 (`ExcelController.saveExcelChanges`)에서 요청 수신 및 `UpdateExcelRequest` 바인딩 확인.
-  - 서비스 (`ExcelService.updateModifiedRows`)에서 현재 DB 반영 로직 없이 로그 출력만 수행하는 스텁(Stub) 상태임을 확인. 실제 구현 시 DB 업데이트 로직 필요.
-
-## 엑셀 동적 템플릿 생성 및 검증 전략 (2026-06-09)
-- JSON 기반 데이터 스키마 정의:
-  - `flattenedHeaders`: 엑셀 헤더 레이아웃(좌표/병합) 정의.
-  - `flattenedType`: 엑셀 유효성 검증 규칙(데이터 타입 및 정규식) 정의.
-- DTO 구조 변경:
-  - `ExcelCell` 클래스 신설 (`value`, `row`, `col`, `rowspan`, `type`, `pattern` 필드 포함).
-  - `StructureExcelRequest`에서 `List<List<String>>` 대신 `List<ExcelCell>`을 사용하여 타입 안전성 확보.
-- 검증 로직 구현:
-  - 업로드/다운로드 시 `flattenedType` 스키마를 사용하여 데이터 타입 및 정규식 검증 로직 적용.
-  - DB 조회 데이터를 `flattenedHeaders` 기반으로 레이아웃에 매핑하여 엑셀 파일 생성.
-- 요약: 고정된 템플릿 파일 없이 프론트엔드에서 제공하는 스키마 정보와 DB 데이터를 결합하여 동적 생성 및 엄격한 데이터 검증 구현 완료.
-
-## 엑셀 D&D 매핑 및 템플릿 관리 설계 (2026-06-12)
-
-### 1. 핵심 용어 정의 (정확성 및 무결성 중심)
-| 용어 | 필드명 | 의미 | 비고 |
-| :--- | :--- | :--- | :--- |
-| **시스템 고유 키** | `backColumn` | 백엔드 DB/Entity와 1:1 매핑되는 변하지 않는 고유 ID | 예: `memberName` |
-| **표시용 라벨** | `name` | 관리자 화면(도착지 영역)에 노출될 친절한 한글 이름 | 예: 회원이름 |
-| **엑셀 컬럼명** | `frontColumn` | 업로드된 엑셀 파일의 헤더(출발지 영역) 이름 | 예: 고객명 |
-
-### 2. 업무 타입(targetSysType) 판별 및 메타데이터 제공 전략
-- **추론 배제(Exact Match):** 금융/급여 데이터의 정확성(10억 단위 이상)을 위해 키워드 기반 추론을 배제하고 정확한 파일명 매핑 방식 채택.
-- **파일명 매핑:** `ExcelService.getExactSysTypeByFileName`을 통해 지정된 파일명과 100% 일치할 때만 `targetSysType` 판별.
-  - `근로자_간편서식.xlsx` -> `EMPLOYEE`
-  - `급여대장_양식.xlsx` -> `PAYROLL`
-- **통합 응답:** `upload-excel` API 호출 시, 업로드 데이터와 함께 해당 파일에 필요한 `targetColumns` (메타데이터 리스트)를 한 번에 리턴하여 프론트엔드 통신 최적화.
-
-### 3. 데이터베이스 저장 구조 (excel_mapping_template)
-사용자가 구성한 매핑 정보와 그리드 헤더 구조는 유연성을 위해 JSON 형태로 통합 저장함.
-- **userMapping:** `[{"frontColumn": "고객명", "backColumn": "memberName"}, ...]`
-- **headerStructure:** 그리드의 병합/계층 구조를 담은 JSON 객체.
-
-### 4. 검증 및 보안
-- **필수 매핑 강제:** `SysMetadataDto.required` 속성을 활용하여 필수 시스템 컬럼에 매핑된 엑셀 데이터가 없을 경우 저장 차단.
-- **파일명 관리:** 관리자의 워크플로우를 존중하여 원본 파일명 기반의 엄격한 매칭을 유지하되, 추후 필요시 중복 다운로드 꼬리표(`(1)`) 제거 로직 검토 가능.
-
-## 완료 작업 및 보류 사항 (2026-06-12 추가)
-### 1. 엑셀 업로드 및 템플릿 매핑 관련 버그 수정 완료
-- `ExcelController` & `ExcelService`: `saveExcelDataAndTemplate` 및 `updateModifiedRows` 메서드 호출 시 발생하는 컴파일 에러 해결. (추후 로그인 및 감사 기능을 고려하여 `UserInfoDto`를 파라미터로 넘기도록 시그니처 통일)
-- **파일명 확장자 매칭:** `getExactSysTypeByFileName` 로직에서 `contains` 추론을 버리고, 확장자(`.xlsx`)까지 포함된 원본 파일명(`"근로자_간편서식.xlsx"`, `"급여_간편서식.xlsx"` 등)과 정확히 일치(`equals`)하는지 검사하도록 수정.
-- **고객사(Tenant) 식별자 임시 처리:** 로그인 기능 부재로 인해 `excel_mapping_templates`에 저장 시 `user_id` 컬럼 값을 일단 `"anonymous"`로 고정 저장하도록 처리. (해당 컬럼은 추후 로그인 시 고객사 ID로 치환되어 각 고객사별 고유 양식을 유지하는 용도로 사용됨)
-
-### 2. 다음 확인 및 조치 사항 (보류/이슈)
-- **`excel_mapping_templates` 조회 실패 의심:** 템플릿 정보를 DB에 정상적으로 Insert/Update 하고 있으나, 이후 `getSysMetadata` 등을 통해 매핑 데이터를 제대로 읽어오지 못하는 현상이 의심됨.
-  - **원인 추정 1:** 저장 시 `user_id`를 `"anonymous"`로 고정했으나, 조회 시 다른 값으로 조회되고 있을 가능성.
-  - **원인 추정 2:** `targetSysType` 값의 매칭 불일치.
-  - **원인 추정 3:** DB의 `mapping_rules` 컬럼에 저장된 JSON 문자열을 `List<SysMetadataDto>` 객체로 역직렬화(Deserialization)하는 과정에서 에러가 발생하여 `catch` 블록으로 빠지고, 결과적으로 하드코딩된 기본(`if-else`) 메타데이터 목록을 반환하고 있을 가능성. (현재 역직렬화 실패 시 에러 로그만 남기고 별도 예외를 던지지 않음)
-  - **조치 계획:** 다음 작업 시 `getSysMetadata` 메서드 내의 `selectTemplateBySysType` 쿼리 파라미터와 `objectMapper.readValue` 부분의 로그를 확인하여 데이터 페치 및 역직렬화 실패 원인 규명 필요.
-
-## 엑셀 메타데이터 관리 및 구조 개선 논의 (2026-06-19)
-
-### 1. `SysMetadata` 필드 확장 (`dataType`, `regex`)
-- **이슈:** `ExcelApiDto.SysMetadata`에 `dataType`과 `regex`가 추가되었으나, 기존 `ExcelTemplateType` Enum에서 파라미터 개수가 불일치하여 컴파일 에러 발생 가능성 존재.
-- **해결 방안:** Enum에서 `SysMetadata` 객체 생성 시 파라미터를 추가로 넘겨주거나, 가독성 및 유지보수성을 위해 `@Builder` 패턴을 도입하여 해결.
-
-### 2. 프론트엔드로 보안 필드(`backColumn`) 숨김 처리
-- **현황:** 프론트엔드로 실제 DB 테이블 컬럼명인 `backColumn`을 노출하지 않으려고 함.
-- **결과:** 이미 `ExcelApiDto.SysMetadata` 클래스의 `backColumn` 필드에 `@JsonIgnore`가 적용되어 있어, 별도의 추가 작업 없이도 프론트엔드 응답(JSON)에서 자동 제외됨을 확인.
-
-### 3. 하드코딩된 Enum(`ExcelTemplateType`) 리팩토링 전략
-"엑셀 파일 하나당 테이블 하나"라는 규칙에 맞게, 메타데이터 관리를 Enum에서 분리하는 3가지 방안 논의:
-1. **DB 테이블화 (추천):** `excel_template_metadata` 테이블을 만들어 관리. 재배포 없이 스펙 변경 가능.
-2. **DTO 어노테이션 기반 추출:** 기존 비즈니스 DTO 필드에 `@ExcelColumn` 어노테이션을 달고 리플렉션을 통해 동적으로 `SysMetadata` 리스트 추출. (Single Source of Truth)
-3. **JSON/YAML 설정 파일 분리:** 리소스 파일에 메타데이터 정의.
-
-**결론:**
-- DTO 어노테이션 방식을 도입하려면 커스텀 어노테이션 생성, 유틸리티 작성, 각 비즈니스 DTO 수정, 기존 Enum 삭제 등 여러 파일에 걸친 전반적인 구조 변경이 필요함.
-- 당장 대대적인 수정이 부담될 경우, 우선 기존 Enum에 파라미터를 추가하여 기능을 구현하고, 추후 여유가 있을 때 어노테이션 기반 추출 방식 등 근본적인 구조 개선을 진행하기로 보류함.
+## 3. 백엔드 검증 대상 (주요 체크리스트)
+*   **누락 검증 (Null check):** 필수값 매핑 필드의 누락 여부
+*   **중복 검증 (Duplication check):** 엑셀 파일 내 중복 데이터 제거 및 DB 기존 데이터와의 중복 여부 확인
+*   **정규식 검증 (Regex validation):** 이메일, 전화번호, 날짜 등 형식 준수 여부
