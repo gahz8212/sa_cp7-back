@@ -188,14 +188,18 @@ public class ExcelService {
 
   @Transactional(readOnly = true)
   public List<Excel> getExcelList(String fileKey, int page, int size) {
-    ExcelMapper mapper = sqlSessionFactory.openSession().getMapper(ExcelMapper.class);
-    return mapper.selectExcelList(fileKey, size, (page - 1) * size);
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ExcelMapper mapper = sqlSession.getMapper(ExcelMapper.class);
+      return mapper.selectExcelList(fileKey, size, (page - 1) * size);
+    }
   }
 
   @Transactional(readOnly = true)
   public int getExcelCount(String fileKey) {
-    ExcelMapper mapper = sqlSessionFactory.openSession().getMapper(ExcelMapper.class);
-    return mapper.selectExcelCount(fileKey);
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ExcelMapper mapper = sqlSession.getMapper(ExcelMapper.class);
+      return mapper.selectExcelCount(fileKey);
+    }
   }
 
   @Transactional

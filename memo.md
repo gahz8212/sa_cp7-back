@@ -217,3 +217,19 @@ flowchart TD
    - 백엔드는 실제 물리 DB 컬럼명을 노출하지 않고, API DTO 필드명(Logical Key, 예: `companyNumber`)으로 메타데이터를 추상화해 프론트와 연동합니다.
 5. **1차 검증용 타입별 유효성 검증 함수:**
    - `string`, `number`(`isValidNumber`), `date`(`isValidDate`), `boolean`(`isValidBoolean`)에 대한 백엔드 전처리기 함수 명세를 반영하였습니다. (2026-06-23 추가)
+
+---
+
+## 6. 개발 및 버그 픽스 일지 (2026-06-23)
+
+### A. 엑셀 데이터 헤더 스킵 로직 검증 완료
+- `ExcelService.validateExcel(...)` 로직에서 `request.getDataStartRow()` 보다 작거나 같은 헤더 행은 유효성 검사 루프 내에서 `continue;`를 통해 안전하게 스킵(Skip)하도록 구현 상태를 점검 및 확정하였습니다.
+
+### B. MyBatis `BindingException` 캐시 이슈 해결
+- 빌드 캐시 문제 및 톰캣 프로세스가 예전 리소스를 그대로 들고 있어 발생했던 `Invalid bound statement (not found): com.paycoms.cp7.api.common.mapper.ExcelMapper.selectAllExcelList` 오류를 해결하였습니다.
+- 백엔드 서버(포트 `8080`)의 구버전 프로세스를 강제 종료하고 `./gradlew clean` 및 재빌드(`compileJava`)를 실행하여 신규 매핑 쿼리 구문이 정상 작동하도록 조치했습니다.
+
+### C. 템플릿 저장 연동 시 DTO 직렬화/역직렬화(Serialization/Deserialization) 문제 보완
+- 프론트엔드가 보내주는 페이로드 필드(예: `templateData`, `modifiedRows`, `mappedData`, `fileName` 등)가 백엔드 DTO 바인딩 시 `null`로 수신되는 문제를 발견했습니다.
+- `ExcelApiDto.SaveDataAndTemplateRequest` 및 내부 DTO 필드에 `@JsonProperty` 설정을 보강하여 대소문자(Camel Case/Snake Case) 통신 불일치 이슈를 사전에 방어하고 템플릿 영속화(`excel_mapping_templates` INSERT/UPDATE)가 정상적으로 처리되도록 개선하였습니다.
+
