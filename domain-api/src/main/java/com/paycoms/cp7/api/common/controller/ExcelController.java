@@ -130,4 +130,17 @@ public class ExcelController {
     excelService.updateModifiedRows(userInfo, changes);
     return new ApiResponse<>(200, "SYS_200", "총 " + changes.size() + "건의 수정 사항이 반영되었습니다.", "SUCCESS");
   }
+
+  @Operation(summary = "엑셀 데이터 검증", description = "임시 저장된 엑셀 데이터를 매핑 규칙에 따라 검증합니다.")
+  @Auth(AuthPolicy.PUBLIC)
+  @PostMapping(value = "/validate-excel")
+  public ApiResponse<ExcelApiDto.ValidateResponse> validateExcel(
+      @LoginUser UserInfoDto userInfo,
+      @Valid @RequestBody ExcelApiDto.ValidateRequest request) {
+    log.info("Received request to validate Excel data for user {}, file_key {}",
+        userInfo != null ? userInfo.getId() : "anonymous",
+        request.getFileKey());
+    ExcelApiDto.ValidateResponse response = excelService.validateExcel(request);
+    return messageUtils.createResponse("SYS_200", response);
+  }
 }

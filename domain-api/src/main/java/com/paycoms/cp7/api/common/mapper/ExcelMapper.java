@@ -9,5 +9,6 @@ import java.util.List;
 public interface ExcelMapper {
   void insertExcel(Excel excel);
   List<Excel> selectExcelList(@Param("fileKey") String fileKey, @Param("limit") int limit, @Param("offset") int offset);
+  List<Excel> selectAllExcelList(@Param("fileKey") String fileKey);
   int selectExcelCount(@Param("fileKey") String fileKey);
 }

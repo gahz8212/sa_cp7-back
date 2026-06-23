@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -237,5 +238,116 @@ public class ExcelService {
     }
 
     return ExcelTemplateType.getMetadataByFileName(fileName);
+  }
+
+  public ExcelApiDto.ValidateResponse validateExcel(ExcelApiDto.ValidateRequest request) {
+    String fileKey = request.getFileKey();
+    List<ExcelApiDto.ColumnMappingDto> mappings = request.getColumnMappings();
+
+    List<Excel> dataList;
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ExcelMapper mapper = sqlSession.getMapper(ExcelMapper.class);
+      dataList = mapper.selectAllExcelList(fileKey);
+    }
+
+    List<ExcelApiDto.ValidationError> errors = new ArrayList<>();
+
+    for (Excel excelRow : dataList) {
+      int rowIndex = excelRow.getRowIndex();
+      if (rowIndex < request.getDataStartRow()) {
+        continue;
+      }
+      List<String> cells = excelRow.getDataJson();
+      if (cells == null) continue;
+
+      for (ExcelApiDto.ColumnMappingDto mapping : mappings) {
+        int colIndex = mapping.getColIndex();
+        String backColumn = mapping.getBackColumn();
+
+        String val = "";
+        if (colIndex >= 0 && colIndex < cells.size()) {
+          val = cells.get(colIndex);
+        }
+
+        // Try to get metadata rules
+        ExcelApiDto.SysMetadata meta = findMetadata(backColumn);
+        if (meta == null) {
+          // If metadata not found, we skip validation
+          continue;
+        }
+
+        // 1. Required Check
+        if (meta.isRequired()) {
+          if (val == null || val.trim().isEmpty()) {
+            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 필수 입력 항목입니다.", val));
+            continue;
+          }
+        }
+
+        // Skip other validations if value is empty and not required
+        if (val == null || val.trim().isEmpty()) {
+          continue;
+        }
+
+        // 2. Data Type Check
+        if ("number".equalsIgnoreCase(meta.getDataType())) {
+          try {
+            String cleanVal = val.replace(",", "").trim();
+            Double.parseDouble(cleanVal);
+          } catch (NumberFormatException e) {
+            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 숫자 형식이어야 합니다.", val));
+            continue;
+          }
+        } else if ("date".equalsIgnoreCase(meta.getDataType())) {
+          String cleanVal = val.replaceAll("[^0-9]", "").trim();
+          boolean validDate = false;
+          if (cleanVal.length() == 8) {
+            try {
+              int y = Integer.parseInt(cleanVal.substring(0, 4));
+              int m = Integer.parseInt(cleanVal.substring(4, 6));
+              int d = Integer.parseInt(cleanVal.substring(6, 8));
+              if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                validDate = true;
+              }
+            } catch (Exception ignored) {}
+          }
+          if (!validDate) {
+            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 올바른 날짜 형식(예: YYYY-MM-DD)이어야 합니다.", val));
+            continue;
+          }
+        }
+
+        // 3. Regex Check
+        if (meta.getRegex() != null && !meta.getRegex().trim().isEmpty()) {
+          try {
+            String regex = meta.getRegex().replace("\\\\", "\\");
+            if (!val.trim().matches(regex)) {
+              errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + " 형식이 올바르지 않습니다.", val));
+              continue;
+            }
+          } catch (Exception e) {
+            log.error("Regex validation error for pattern: " + meta.getRegex(), e);
+          }
+        }
+      }
+    }
+
+    boolean success = errors.isEmpty();
+    String message = success ? "데이터 검증에 성공했습니다." : "데이터 검증에 실패했습니다.";
+    return new ExcelApiDto.ValidateResponse(success, message, errors);
+  }
+
+  private ExcelApiDto.SysMetadata findMetadata(String backColumn) {
+    if (backColumn == null) return null;
+    for (ExcelTemplateType type : ExcelTemplateType.values()) {
+      if (type.getMetadata() != null) {
+        for (ExcelApiDto.SysMetadata meta : type.getMetadata()) {
+          if (backColumn.equals(meta.getName())) {
+            return meta;
+          }
+        }
+      }
+    }
+    return null;
   }
 }

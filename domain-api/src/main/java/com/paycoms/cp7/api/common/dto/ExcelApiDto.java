@@ -1,6 +1,7 @@
 package com.paycoms.cp7.api.common.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import com.paycoms.cp7.api.common.model.Excel;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ExcelApiDto {
 
@@ -74,15 +76,24 @@ public class ExcelApiDto {
 
     @Data
     public static class SaveDataAndTemplateRequest {
+        @JsonProperty("modifiedRows")
         private List<ModifiedRow> modifiedRows;
+
+        @JsonProperty("templateData")
         private TemplateDto templateData;
+
+        @JsonProperty("mappedData")
         private List<List<Map<String, String>>> mappedData; // 실제 매핑된 데이터 목록 (행 단위)
 
         @Data
         public static class TemplateDto {
-            // private String targetSysType;
+            @JsonProperty("fileName")
             private String fileName;
+
+            @JsonProperty("structures")
             private Map<String, Object> structures;
+
+            @JsonProperty("targetColumns")
             private List<SysMetadata> targetColumns;
         }
     }
@@ -91,13 +102,14 @@ public class ExcelApiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SysMetadata {
-        @JsonIgnore
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
         private String backColumn;
         private String name;
         private String description;
         private boolean required;
         private String frontColumn;
         private Integer excelColIndex;
+        private Integer relativeRowIndex;
         private String dataType;
         private String regex;
 
@@ -148,5 +160,57 @@ public class ExcelApiDto {
         @NotNull(message = "VALI_001.datas")
         @Schema(description = "데이터")
         private List<Object[]> datas;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Schema(description = "엑셀 검증 요청 DTO")
+    public static class ValidateRequest {
+        @NotBlank(message = "file_key는 필수입니다.")
+        @JsonProperty("file_key")
+        private String fileKey;
+
+        @NotEmpty(message = "columnMappings는 필수입니다.")
+        @JsonProperty("columnMappings")
+        private List<ColumnMappingDto> columnMappings;
+
+        @JsonProperty("data_start_row")
+        private int dataStartRow = 0;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class ColumnMappingDto {
+        @JsonProperty("col-index")
+        private int colIndex;
+
+        @JsonProperty("relative-row")
+        private int relativeRow;
+
+        @JsonProperty("back-column")
+        private String backColumn;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ValidationError {
+        private int rowIndex;
+        private String columnCode;
+        private String errorMessage;
+        private String invalidValue;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ValidateResponse {
+        private boolean success;
+        private String message;
+        private List<ValidationError> errors;
     }
 }

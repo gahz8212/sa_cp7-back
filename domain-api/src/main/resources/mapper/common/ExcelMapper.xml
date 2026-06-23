@@ -29,6 +29,12 @@
         ORDER BY row_index ASC
         LIMIT #{limit} OFFSET #{offset}
     </select>
+
+    <select id="selectAllExcelList" resultMap="ExcelResultMap">
+        SELECT * FROM excel_data
+        WHERE file_key = #{fileKey}
+        ORDER BY row_index ASC
+    </select>
     
     <select id="selectExcelCount" resultType="int">
         SELECT COUNT(*) FROM excel_data
