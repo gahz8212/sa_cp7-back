@@ -301,8 +301,37 @@ public class ExcelService {
           continue; // 제외
         }
 
-        // 2. 검증 단계에서는 노이즈 행 필터를 생략하고 모든 물리 데이터 행을 유지 (인덱스 정렬 유지)
+        // 2. 데이터 영역에 한해 노이즈 행(결제선 등) 필터링 적용
+        // (전체 열의 50% 이상 빈칸 + 우측 편향 + 3연속 빈칸)
+        int totalCols = rowData.size();
+        int emptyCount = 0;
+        int firstNonEmptyIdx = -1;
+        int consecutiveEmptyCount = 0;
+        boolean has3ConsecutiveEmpty = false;
 
+        for (int c = 0; c < totalCols; c++) {
+          String val = rowData.get(c);
+          boolean isEmpty = (val == null || val.trim().isEmpty());
+          if (isEmpty) {
+            emptyCount++;
+            consecutiveEmptyCount++;
+            if (consecutiveEmptyCount >= 3) {
+              has3ConsecutiveEmpty = true;
+            }
+          } else {
+            consecutiveEmptyCount = 0;
+            if (firstNonEmptyIdx == -1) {
+              firstNonEmptyIdx = c;
+            }
+          }
+        }
+
+        boolean is50PercentOrMoreEmpty = (double) emptyCount >= totalCols * 0.5;
+        boolean isRightLeaning = (double) firstNonEmptyIdx >= totalCols * 0.5;
+
+        if (is50PercentOrMoreEmpty && isRightLeaning && has3ConsecutiveEmpty) {
+          continue; // 노이즈 행(결제선 등)으로 간주하여 데이터 검증 대상에서 제외
+        }
         rowMap.put(row.getRowIndex(), rowData);
         sortedDataRowIndices.add(row.getRowIndex());
       }
@@ -352,7 +381,11 @@ public class ExcelService {
         if (cells == null) continue;
 
         int colIndex = mapping.getColIndex();
-        String val = (colIndex >= 0 && colIndex < cells.size()) ? cells.get(colIndex) : "";
+
+        // 매핑되지 않은 컬럼(colIndex < 0)은 데이터가 없는 항목으로 간주하고 검증 제외
+        if (colIndex < 0) continue;
+
+        String val = (colIndex < cells.size()) ? cells.get(colIndex) : "";
 
         // 1. 필수값 검증
         if (meta.isRequired() && (val == null || val.trim().isEmpty())) {
