@@ -233,3 +233,43 @@ flowchart TD
 - 프론트엔드가 보내주는 페이로드 필드(예: `templateData`, `modifiedRows`, `mappedData`, `fileName` 등)가 백엔드 DTO 바인딩 시 `null`로 수신되는 문제를 발견했습니다.
 - `ExcelApiDto.SaveDataAndTemplateRequest` 및 내부 DTO 필드에 `@JsonProperty` 설정을 보강하여 대소문자(Camel Case/Snake Case) 통신 불일치 이슈를 사전에 방어하고 템플릿 영속화(`excel_mapping_templates` INSERT/UPDATE)가 정상적으로 처리되도록 개선하였습니다.
 
+---
+
+## 7. 개발 및 버그 픽스 일지 (2026-06-24)
+
+### A. 서버 8080 포트 충돌 이슈 해결 및 포트 제어 명령어 정리
+- 이전에 실행된 톰캣/Gradle 데몬 프로세스가 8080 포트를 해제하지 못하여 서버 기동에 실패하던 현상을 해결했습니다.
+- `kill -9 $(lsof -ti:8080)` 또는 `fuser -k 8080/tcp` 명령어로 기존 프로세스를 확실하게 종료한 후 백엔드 서버(`./gradlew :domain-api:bootRun`)가 정상 실행(started)되도록 조치했습니다.
+- 향후 수동 제어를 위해 메모리에 PID 식별 및 프로세스 제어 매뉴얼을 정리했습니다.
+
+### B. `ExcelService` 유효성 검증 단위 테스트 복구
+- `ExcelServiceTest.validateExcel_shouldValidateCorrectly()` 테스트 작성 시 DTO 요청 데이터에 `fileName` 설정이 누락되어 템플릿 매칭이 스킵되었고, 그 결과 무조건 검증 성공(`success=true`)으로 리턴되어 `assertFalse` 단언문이 깨지던 빌드 실패 건을 조치했습니다.
+- 테스트용 `ValidateRequest`에 파일명(`근로자_간편서식.xlsx`)을 지정하여 `excel-templates.json` 에 선언된 정밀 메타데이터(정규식 포함)를 정상 로드하였고, 의도한 3건의 유효성 위반 에러가 수집되어 빌드가 완벽히 통과(`BUILD SUCCESSFUL`)하도록 수정했습니다.
+
+### C. 정규식 검증 정합성 교차 점검
+- 엑셀 업로드 시 `사업자번호` 컬럼에 잘못된 데이터(`일이삼`)가 인입되었을 때, JSON 이스케이프 해제 과정과 무관하게 백엔드에서 정규식(`^(?:\\d{3}-\\d{2}-\\d{5}|\\d{10})$`) 검증을 거쳐 `ValidationError` 리스트에 정상 적재됨을 로그 및 단위 테스트를 통해 교차 검증 완료했습니다.
+
+### D. 2단 구조 검증 에러 실제 행 번호 전송 (`targetRowIndex` 도입)
+- **문제**: 2단 레코드에서 검증 에러 발생 시, 에러 객체의 행 번호로 실제 오류가 발생한 행 대신 레코드의 첫 번째 행 번호(`representativeRowIndex`)를 넘겨주어 프론트엔드가 엉뚱한 셀에 에러 하이라이팅을 시키는 오작동을 확인했습니다.
+- **해결**: 에러 수집 시 실제 물리 에러가 발생한 `targetRowIndex`를 바인딩해 전송하도록 `ExcelService.java` 로직을 수정 완료했습니다.
+
+### E. 검증 단계 내 중복 노이즈 행 삭제 필터 제거 (인덱스 도미노 버그 방지)
+- **문제**: `validateExcel` API 내에서 이미 `dataStartRow`가 확정된 데이터 행들을 수집해 검증할 때, 불필요하게 노이즈 행 삭제 필터("50% 빈칸 + 우측 편향")를 중복으로 수행하던 버그가 있었습니다. 이로 인해 6행의 데이터를 지우거나 값을 누락하여 검증을 요청하면 6행 자체가 엑셀 시트에서 통째로 지워져 제외되어 아래 7~8행 데이터들의 짝(Record set mapping)이 도미노처럼 한 칸씩 위로 밀려 엉뚱한 행들에 에러가 번지는 대박 인덱스 꼬임 현상이 일어났습니다.
+- **해결**: 백엔드 검증 루프 내의 노이즈 삭제 필터를 완전히 제거하여, 오직 빈 행(`isAllEmpty`)만 건너뛰고 모든 물리 데이터 행들의 짝과 정렬 인덱스를 온전히 보존하도록 조치했습니다.
+
+### F. 스프링부트 백엔드 CLI 기동 가이드 (VSCode Extension 분실 대응)
+- **현상**: VSCode에서 Spring Boot 관련 대시보드나 실행 아이콘이 갑자기 사라지는 경우가 발생할 수 있습니다.
+- **해결**: VSCode Extension 복구와 무관하게, 터미널 터미널 창에서 gradle wrapper를 이용해 백엔드 서버를 즉시 기동할 수 있습니다.
+  - **프로젝트 루트 디렉토리**(`sa_cp7-back/`)에서 다음 명령어를 실행하여 백엔드 API 서버를 시작합니다:
+    ```bash
+    ./gradlew :domain-api:bootRun
+    ```
+  - 만약 포트가 이미 점유되어 실행에 실패한다면, 8080 포트를 점유하고 있는 기존 프로세스를 정리해야 합니다:
+    ```bash
+    # 8080 포트 점유 프로세스 종료
+    kill -9 $(lsof -ti:8080)
+    ```
+    이후 다시 `./gradlew :domain-api:bootRun`을 실행하면 원활하게 백엔드가 재기동됩니다.
+
+
+

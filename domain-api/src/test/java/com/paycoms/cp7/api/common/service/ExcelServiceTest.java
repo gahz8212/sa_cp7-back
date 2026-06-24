@@ -193,6 +193,7 @@ class ExcelServiceTest {
 
         ExcelApiDto.ValidateRequest request = new ExcelApiDto.ValidateRequest();
         request.setFileKey("testKey");
+        request.setFileName("근로자_간편서식.xlsx");
 
         ExcelApiDto.ColumnMappingDto map1 = new ExcelApiDto.ColumnMappingDto();
         map1.setColIndex(0);

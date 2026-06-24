@@ -29,6 +29,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,18 +60,19 @@ public class ExcelService {
   public void uploadExcel(String fileKey, MultipartFile file, int sheetNo) throws IOException {
     Workbook workbook = WorkbookFactory.create(file.getInputStream());
     Sheet sheet = workbook.getSheetAt(sheetNo);
+    FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
 
     try {
       List<Excel> dataList = new ArrayList<>();
       List<Excel> emptyBuffer = new ArrayList<>();
-      int bestRowNo = findBestHeaderRow(sheet);
+      int bestRowNo = findBestHeaderRow(sheet, evaluator);
 
       Row bestRow = sheet.getRow(bestRowNo);
       List<String> headers = new ArrayList<>();
       if (bestRow != null) {
         for (int j = 0; j < bestRow.getLastCellNum(); j++) {
           Cell cell = bestRow.getCell(j);
-          headers.add(getCellValueAsString(cell));
+          headers.add(getCellValueAsString(cell, evaluator));
         }
       }
 
@@ -79,7 +82,7 @@ public class ExcelService {
         boolean isAllEmpty = true;
         for (int j = 0; j < headers.size(); j++) {
           Cell cell = (row != null) ? row.getCell(j) : null;
-          String val = (cell != null ? getCellValueAsString(cell) : "");
+          String val = (cell != null ? getCellValueAsString(cell, evaluator) : "");
           rowData.add(val);
           if (val != null && !val.trim().isEmpty()) {
             isAllEmpty = false;
@@ -120,7 +123,7 @@ public class ExcelService {
     }
   }
 
-  private int findBestHeaderRow(Sheet sheet) {
+  private int findBestHeaderRow(Sheet sheet, FormulaEvaluator evaluator) {
     int maxCells = -1;
     int bestRowIndex = 0;
     int scanLimit = Math.min(sheet.getLastRowNum(), 30);
@@ -131,7 +134,7 @@ public class ExcelService {
       int currentCells = 0;
       for (int j = 0; j < row.getLastCellNum(); j++) {
         Cell cell = row.getCell(j);
-        if (cell != null && !getCellValueAsString(cell).trim().isEmpty())
+        if (cell != null && !getCellValueAsString(cell, evaluator).trim().isEmpty())
           currentCells++;
       }
       if (currentCells > maxCells) {
@@ -142,9 +145,16 @@ public class ExcelService {
     return bestRowIndex;
   }
 
-  private String getCellValueAsString(Cell cell) {
+  private String getCellValueAsString(Cell cell, FormulaEvaluator evaluator) {
     if (cell == null)
       return "";
+    if (cell.getCellType() == CellType.FORMULA) {
+      try {
+        return dataFormatter.formatCellValue(cell, evaluator);
+      } catch (Exception e) {
+        log.warn("Formula evaluation failed for cell at row {}, col {}: {}", cell.getRowIndex(), cell.getColumnIndex(), e.getMessage());
+      }
+    }
     return dataFormatter.formatCellValue(cell);
   }
 
@@ -277,7 +287,23 @@ public class ExcelService {
     List<Integer> sortedDataRowIndices = new ArrayList<>();
     for (Excel row : allRows) {
       if (row.getRowIndex() >= dataStartRow && row.getDataJson() != null) {
-        rowMap.put(row.getRowIndex(), row.getDataJson());
+        List<String> rowData = row.getDataJson();
+
+        // 1. 완전히 비어있는 행인지 검사
+        boolean isAllEmpty = true;
+        for (String val : rowData) {
+          if (val != null && !val.trim().isEmpty()) {
+            isAllEmpty = false;
+            break;
+          }
+        }
+        if (isAllEmpty) {
+          continue; // 제외
+        }
+
+        // 2. 검증 단계에서는 노이즈 행 필터를 생략하고 모든 물리 데이터 행을 유지 (인덱스 정렬 유지)
+
+        rowMap.put(row.getRowIndex(), rowData);
         sortedDataRowIndices.add(row.getRowIndex());
       }
     }
@@ -331,7 +357,7 @@ public class ExcelService {
         // 1. 필수값 검증
         if (meta.isRequired() && (val == null || val.trim().isEmpty())) {
           errors.add(new ExcelApiDto.ValidationError(
-              representativeRowIndex, mapping.getBackColumn(),
+              targetRowIndex, mapping.getBackColumn(),
               meta.getName() + "은(는) 필수 입력 항목입니다.", val));
           continue;
         }
@@ -345,7 +371,7 @@ public class ExcelService {
             Double.parseDouble(val.replace(",", "").trim());
           } catch (NumberFormatException e) {
             errors.add(new ExcelApiDto.ValidationError(
-                representativeRowIndex, mapping.getBackColumn(),
+                targetRowIndex, mapping.getBackColumn(),
                 meta.getName() + "은(는) 숫자 형식이어야 합니다.", val));
             continue;
           }
@@ -361,7 +387,7 @@ public class ExcelService {
           }
           if (!validDate) {
             errors.add(new ExcelApiDto.ValidationError(
-                representativeRowIndex, mapping.getBackColumn(),
+                targetRowIndex, mapping.getBackColumn(),
                 meta.getName() + "은(는) 올바른 날짜 형식(예: YYYY-MM-DD)이어야 합니다.", val));
             continue;
           }
@@ -375,7 +401,7 @@ public class ExcelService {
                 mapping.getBackColumn(), val, meta.getRegex(), regex);
             if (!val.trim().matches(regex)) {
               errors.add(new ExcelApiDto.ValidationError(
-                  representativeRowIndex, mapping.getBackColumn(),
+                  targetRowIndex, mapping.getBackColumn(),
                   meta.getName() + " 형식이 올바르지 않습니다.", val));
             }
           } catch (Exception e) {
