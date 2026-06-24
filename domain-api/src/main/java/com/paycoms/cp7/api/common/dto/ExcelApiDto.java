@@ -171,12 +171,21 @@ public class ExcelApiDto {
         @JsonProperty("file_key")
         private String fileKey;
 
+        @Schema(description = "업로드된 파일명 — 템플릿 메타데이터(검증 규칙) 조회에 사용")
+        @JsonProperty("file_name")
+        private String fileName;
+
         @NotEmpty(message = "columnMappings는 필수입니다.")
         @JsonProperty("columnMappings")
         private List<ColumnMappingDto> columnMappings;
 
+        @Schema(description = "데이터 시작 행 인덱스 (structures.dataStartRow)")
         @JsonProperty("data_start_row")
         private int dataStartRow = 0;
+
+        @Schema(description = "데이터 종료 행 인덱스 (structures.dataEndRow) — 레코드 당 행 수 계산용 프리뷰 샘플값")
+        @JsonProperty("data_end_row")
+        private int dataEndRow = 0;
     }
 
     @Getter

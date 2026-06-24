@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -246,60 +248,105 @@ public class ExcelService {
 
   public ExcelApiDto.ValidateResponse validateExcel(ExcelApiDto.ValidateRequest request) {
     String fileKey = request.getFileKey();
+    String fileName = request.getFileName();
     List<ExcelApiDto.ColumnMappingDto> mappings = request.getColumnMappings();
+    int dataStartRow = request.getDataStartRow();
 
-    List<Excel> dataList;
+    // structures.dataEndRow - structures.dataStartRow + 1 = 레코드 당 행 수
+    // (dataEndRow < dataStartRow 인 경우 기본값 1로 처리)
+    int dataRowsPerSet = Math.max(1, request.getDataEndRow() - dataStartRow + 1);
+
+    // 파일명 기반으로 해당 텞플릿의 메타데이터 선로드
+    List<ExcelApiDto.SysMetadata> templateMetadata = ExcelTemplateType.getMetadataByFileName(fileName);
+    if (templateMetadata.isEmpty()) {
+      log.warn("[validateExcel] 파일명 '{}'(에) 해당하는 텝플릿 메타데이터가 없습니다. 검증 건너뜀니다.", fileName);
+      return new ExcelApiDto.ValidateResponse(true, "등록된 텝플릿이 없어 검증을 건너뜀니다.", new ArrayList<>());
+    }
+    log.info("[validateExcel] fileKey={}, fileName={}, dataStartRow={}, dataRowsPerSet={}",
+        fileKey, fileName, dataStartRow, dataRowsPerSet);
+
+    // 전체 행 조회
+    List<Excel> allRows;
     try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
       ExcelMapper mapper = sqlSession.getMapper(ExcelMapper.class);
-      dataList = mapper.selectAllExcelList(fileKey);
+      allRows = mapper.selectAllExcelList(fileKey);
     }
 
-    List<ExcelApiDto.ValidationError> errors = new ArrayList<>();
-
-    for (Excel excelRow : dataList) {
-      int rowIndex = excelRow.getRowIndex();
-      if (rowIndex < request.getDataStartRow()) {
-        continue;
+    // 헤더 행 스킵 후 rowIndex → cells 맵 구성 및 정렬된 인덱스 목록 생성
+    Map<Integer, List<String>> rowMap = new HashMap<>();
+    List<Integer> sortedDataRowIndices = new ArrayList<>();
+    for (Excel row : allRows) {
+      if (row.getRowIndex() >= dataStartRow && row.getDataJson() != null) {
+        rowMap.put(row.getRowIndex(), row.getDataJson());
+        sortedDataRowIndices.add(row.getRowIndex());
       }
-      List<String> cells = excelRow.getDataJson();
-      if (cells == null) continue;
+    }
+    Collections.sort(sortedDataRowIndices);
 
-      for (ExcelApiDto.ColumnMappingDto mapping : mappings) {
+    // 검증 대상 컬럼 구분: backColumn이 있고 파일명에 일치하는 텝플릿의 metadata가 존재하는 매핑만 선별
+    Map<ExcelApiDto.ColumnMappingDto, ExcelApiDto.SysMetadata> validationTargets = new LinkedHashMap<>();
+    for (ExcelApiDto.ColumnMappingDto mapping : mappings) {
+      String backColumn = mapping.getBackColumn();
+      if (backColumn == null || backColumn.trim().isEmpty()) continue;
+      ExcelApiDto.SysMetadata meta = findMetadata(backColumn, templateMetadata);
+      if (meta == null) continue; // metadata 없는 컬럼(라벨/표시용)은 검증 제외
+      validationTargets.put(mapping, meta);
+    }
+    log.info("[validateExcel] 검증 대상 컬럼 수: {}/{}", validationTargets.size(), mappings.size());
+
+    List<ExcelApiDto.ValidationError> errors = new ArrayList<>();
+    int totalDataRows = sortedDataRowIndices.size();
+    int recordCount = (int) Math.ceil((double) totalDataRows / dataRowsPerSet);
+
+    for (int recordIdx = 0; recordIdx < recordCount; recordIdx++) {
+
+      // 이 레코드를 구성하는 행 인덱스 목록 (relativeRow 0, 1, 2 ...)
+      List<Integer> recordRowIndices = new ArrayList<>();
+      for (int r = 0; r < dataRowsPerSet; r++) {
+        int listIdx = recordIdx * dataRowsPerSet + r;
+        if (listIdx < totalDataRows) {
+          recordRowIndices.add(sortedDataRowIndices.get(listIdx));
+        }
+      }
+      if (recordRowIndices.isEmpty()) continue;
+
+      // 에러 리포트용 대표 행 번호 (레코드의 첫 번째 행)
+      int representativeRowIndex = recordRowIndices.get(0);
+
+      for (Map.Entry<ExcelApiDto.ColumnMappingDto, ExcelApiDto.SysMetadata> entry : validationTargets.entrySet()) {
+        ExcelApiDto.ColumnMappingDto mapping = entry.getKey();
+        ExcelApiDto.SysMetadata meta = entry.getValue();
+
+        // relativeRow로 이 매핑이 속한 행 선택
+        int relativeRow = mapping.getRelativeRow();
+        if (relativeRow >= recordRowIndices.size()) continue;
+
+        int targetRowIndex = recordRowIndices.get(relativeRow);
+        List<String> cells = rowMap.get(targetRowIndex);
+        if (cells == null) continue;
+
         int colIndex = mapping.getColIndex();
-        String backColumn = mapping.getBackColumn();
+        String val = (colIndex >= 0 && colIndex < cells.size()) ? cells.get(colIndex) : "";
 
-        String val = "";
-        if (colIndex >= 0 && colIndex < cells.size()) {
-          val = cells.get(colIndex);
-        }
-
-        // Try to get metadata rules
-        ExcelApiDto.SysMetadata meta = findMetadata(backColumn);
-        if (meta == null) {
-          // If metadata not found, we skip validation
+        // 1. 필수값 검증
+        if (meta.isRequired() && (val == null || val.trim().isEmpty())) {
+          errors.add(new ExcelApiDto.ValidationError(
+              representativeRowIndex, mapping.getBackColumn(),
+              meta.getName() + "은(는) 필수 입력 항목입니다.", val));
           continue;
         }
 
-        // 1. Required Check
-        if (meta.isRequired()) {
-          if (val == null || val.trim().isEmpty()) {
-            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 필수 입력 항목입니다.", val));
-            continue;
-          }
-        }
+        // 값이 비어있으면 이후 검증 스킵
+        if (val == null || val.trim().isEmpty()) continue;
 
-        // Skip other validations if value is empty and not required
-        if (val == null || val.trim().isEmpty()) {
-          continue;
-        }
-
-        // 2. Data Type Check
+        // 2. 타입 검증
         if ("number".equalsIgnoreCase(meta.getDataType())) {
           try {
-            String cleanVal = val.replace(",", "").trim();
-            Double.parseDouble(cleanVal);
+            Double.parseDouble(val.replace(",", "").trim());
           } catch (NumberFormatException e) {
-            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 숫자 형식이어야 합니다.", val));
+            errors.add(new ExcelApiDto.ValidationError(
+                representativeRowIndex, mapping.getBackColumn(),
+                meta.getName() + "은(는) 숫자 형식이어야 합니다.", val));
             continue;
           }
         } else if ("date".equalsIgnoreCase(meta.getDataType())) {
@@ -307,30 +354,32 @@ public class ExcelService {
           boolean validDate = false;
           if (cleanVal.length() == 8) {
             try {
-              int y = Integer.parseInt(cleanVal.substring(0, 4));
               int m = Integer.parseInt(cleanVal.substring(4, 6));
               int d = Integer.parseInt(cleanVal.substring(6, 8));
-              if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-                validDate = true;
-              }
+              validDate = (m >= 1 && m <= 12 && d >= 1 && d <= 31);
             } catch (Exception ignored) {}
           }
           if (!validDate) {
-            errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + "은(는) 올바른 날짜 형식(예: YYYY-MM-DD)이어야 합니다.", val));
+            errors.add(new ExcelApiDto.ValidationError(
+                representativeRowIndex, mapping.getBackColumn(),
+                meta.getName() + "은(는) 올바른 날짜 형식(예: YYYY-MM-DD)이어야 합니다.", val));
             continue;
           }
         }
 
-        // 3. Regex Check
+        // 3. 정규식 검증
         if (meta.getRegex() != null && !meta.getRegex().trim().isEmpty()) {
           try {
             String regex = meta.getRegex().replace("\\\\", "\\");
+            log.debug("[validateExcel] regex 검증 — col={}, val='{}', rawRegex='{}', compiledRegex='{}'",
+                mapping.getBackColumn(), val, meta.getRegex(), regex);
             if (!val.trim().matches(regex)) {
-              errors.add(new ExcelApiDto.ValidationError(rowIndex, backColumn, meta.getName() + " 형식이 올바르지 않습니다.", val));
-              continue;
+              errors.add(new ExcelApiDto.ValidationError(
+                  representativeRowIndex, mapping.getBackColumn(),
+                  meta.getName() + " 형식이 올바르지 않습니다.", val));
             }
           } catch (Exception e) {
-            log.error("Regex validation error for pattern: " + meta.getRegex(), e);
+            log.error("Regex validation error for pattern: {}", meta.getRegex(), e);
           }
         }
       }
@@ -341,15 +390,17 @@ public class ExcelService {
     return new ExcelApiDto.ValidateResponse(success, message, errors);
   }
 
-  private ExcelApiDto.SysMetadata findMetadata(String backColumn) {
-    if (backColumn == null) return null;
-    for (ExcelTemplateType type : ExcelTemplateType.values()) {
-      if (type.getMetadata() != null) {
-        for (ExcelApiDto.SysMetadata meta : type.getMetadata()) {
-          if (backColumn.equals(meta.getName())) {
-            return meta;
-          }
-        }
+  /**
+   * 파일명으로 선로드된 템플릿 메타데이터 목록 안에서 name(표시명) 기준으로 조회.
+   * SysMetadata.backColumn 은 @JsonProperty(WRITE_ONLY) 로 프론트에 노출되지 않으므로,
+   * 프론트가 ColumnMappingDto.backColumn 에 보내는 값은 name(예: "사업자번호") 이다.
+   * metadata가 없는 컬럼(라벨/표시용)은 null 반환 → 검증 제외 처리됨.
+   */
+  private ExcelApiDto.SysMetadata findMetadata(String backColumn, List<ExcelApiDto.SysMetadata> metadataList) {
+    if (backColumn == null || metadataList == null) return null;
+    for (ExcelApiDto.SysMetadata meta : metadataList) {
+      if (backColumn.equals(meta.getName())) { // 프론트가 보내는 표시명(name) 기준 매칭
+        return meta;
       }
     }
     return null;
