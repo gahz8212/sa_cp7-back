@@ -4,7 +4,10 @@
     "fileNames": [
       "근로자_간편서식.xlsx",
       "자재_간편서식.xlsx",
-      "장비_간편서식.xlsx"
+      "장비_간편서식.xlsx",
+      "근로자_간편서식_2열1단.xlsx",
+      "장비_간편서식_20250701_cp+.xlsx"
+
     ],
     "metadata": [
       {
@@ -61,7 +64,9 @@
   },
   {
     "templateType": "SIMPLE2",
-    "fileNames": ["자재_간편서식_2열2단.xlsx", "근로자_간편서식_2열2단.xlsx"],
+    "fileNames": ["자재_간편서식_2열2단.xlsx", 
+    
+    "자재_간편서식_2열헤더_20250701_cp+.xlsx"],
     "metadata": [
       {
         "backColumn": "companyName",
