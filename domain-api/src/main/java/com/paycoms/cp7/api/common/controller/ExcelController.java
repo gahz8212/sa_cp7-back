@@ -44,14 +44,14 @@ public class ExcelController {
   private final MessageUtils messageUtils;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  @Operation(summary = "엑셀 템플릿 타입 목록 조회", description = "시스템에 정의된 엑셀 템플릿 타입(WORKER, PARTS 등)과 메타데이터 목록을 조회합니다.")
+  @Operation(summary = "시스템 메타데이터 목록 조회", description = "시스템에 정의된 메타데이터 목록을 조회합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @GetMapping(value = "/excel-templates")
   public ApiResponse<List<ExcelTemplateType>> getExcelTemplates() {
     return messageUtils.createResponse("SYS_200", Arrays.asList(ExcelTemplateType.values()));
   }
 
-  @Operation(summary = "엑셀 업로드", description = "엑셀 파일을 업로드합니다.")
+  @Operation(summary = "엑셀 파일 데이터 임시저장", description = "엑셀 파일 데이터를 임시저장 합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/upload-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ApiResponse<ExcelApiDto.UploadResponse> uploadExcel(@LoginUser UserInfoDto userInfo,
@@ -101,12 +101,13 @@ public class ExcelController {
   // @Operation(summary = "헤더,데이터,기타 구조", description = "엑셀 구조 데이터를 업로드합니다.")
   // @Auth(AuthPolicy.PUBLIC)
   // @PostMapping(value = "/analyze-excel-structure")
-  // public ApiResponse<ExcelApiDto.UploadResponse> analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
-  //     @RequestBody ExcelApiDto.StructureRequest request) {
-  //   return messageUtils.createResponse("SYS_200", null);
+  // public ApiResponse<ExcelApiDto.UploadResponse>
+  // analyzeExcelStructure(@LoginUser UserInfoDto userInfo,
+  // @RequestBody ExcelApiDto.StructureRequest request) {
+  // return messageUtils.createResponse("SYS_200", null);
   // }
 
-  @Operation(summary = "엑셀 데이터 및 템플릿 저장", description = "수정된 데이터와 매핑 템플릿을 함께 저장합니다.")
+  @Operation(summary = "엑셀 시트 구조, 매핑 저장", description = " 구조, 매핑 데이터를 저장합니다.")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/save-excel-data-and-template")
   public ApiResponse<String> saveExcelDataAndTemplate(
@@ -119,7 +120,7 @@ public class ExcelController {
     return new ApiResponse<>(200, "SYS_200", "데이터와 매핑 템플릿이 저장되었습니다.", "SUCCESS");
   }
 
-  @Operation(summary = "엑셀 수정 사항 저장", description = "그리드에서 수정된 엑셀 행 데이터를 반영합니다.")
+  @Operation(summary = "엑셀 오류 데이터 수정/저장", description = "그리드에서 오류가 수정된 엑셀 행 데이터를 반영합니다. (예정)")
   @Auth(AuthPolicy.PUBLIC)
   @PostMapping(value = "/save-excel-changes")
   public ApiResponse<String> saveExcelChanges(
