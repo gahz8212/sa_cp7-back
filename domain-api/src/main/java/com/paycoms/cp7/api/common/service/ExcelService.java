@@ -301,37 +301,6 @@ public class ExcelService {
           continue; // 제외
         }
 
-        // 2. 데이터 영역에 한해 노이즈 행(결제선 등) 필터링 적용
-        // (전체 열의 50% 이상 빈칸 + 우측 편향 + 3연속 빈칸)
-        int totalCols = rowData.size();
-        int emptyCount = 0;
-        int firstNonEmptyIdx = -1;
-        int consecutiveEmptyCount = 0;
-        boolean has3ConsecutiveEmpty = false;
-
-        for (int c = 0; c < totalCols; c++) {
-          String val = rowData.get(c);
-          boolean isEmpty = (val == null || val.trim().isEmpty());
-          if (isEmpty) {
-            emptyCount++;
-            consecutiveEmptyCount++;
-            if (consecutiveEmptyCount >= 3) {
-              has3ConsecutiveEmpty = true;
-            }
-          } else {
-            consecutiveEmptyCount = 0;
-            if (firstNonEmptyIdx == -1) {
-              firstNonEmptyIdx = c;
-            }
-          }
-        }
-
-        boolean is50PercentOrMoreEmpty = (double) emptyCount >= totalCols * 0.5;
-        boolean isRightLeaning = (double) firstNonEmptyIdx >= totalCols * 0.5;
-
-        if (is50PercentOrMoreEmpty && isRightLeaning && has3ConsecutiveEmpty) {
-          continue; // 노이즈 행(결제선 등)으로 간주하여 데이터 검증 대상에서 제외
-        }
         rowMap.put(row.getRowIndex(), rowData);
         sortedDataRowIndices.add(row.getRowIndex());
       }
@@ -401,7 +370,8 @@ public class ExcelService {
         // 2. 타입 검증
         if ("number".equalsIgnoreCase(meta.getDataType())) {
           try {
-            Double.parseDouble(val.replace(",", "").trim());
+            String cleanVal = val.replace(",", "").replaceAll("[^0-9.\\-]", "").trim();
+            Double.parseDouble(cleanVal);
           } catch (NumberFormatException e) {
             errors.add(new ExcelApiDto.ValidationError(
                 targetRowIndex, mapping.getBackColumn(),
